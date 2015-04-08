@@ -1,0 +1,32 @@
+{
+  "name": "usrz-scramlogin",
+  "description": "SCRAM-based login",
+  "version": "0.0.0",
+  "author": {
+    "name": "Pier Fumagalli",
+    "email": "pier@usrz.com"
+  },
+  "main": "src/application.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usrz/js-api-login"
+  },
+  "homepage": "https://github.com/usrz/js-api-login",
+  "devDependencies": {
+    "chai": "^2.2.0",
+    "grunt": "^0.4.5",
+    "grunt-simple-mocha": "^0.4.0",
+    "key-derivation": "^1.0.2",
+    "request": "^2.55.0"
+  },
+  "dependencies": {
+    "base64-url": "^1.2.1",
+    "body-parser": "^1.12.2",
+    "express": "^4.12.3",
+    "express-statuses": "^1.0.3",
+    "ms": "^0.7.0",
+    "promise": "^7.0.0",
+    "type-is": "^1.6.1"
+  }
+}
