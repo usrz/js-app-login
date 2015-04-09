@@ -1,26 +1,81 @@
 'use strict';
 
 var expect = require('chai').expect;
-var Scram = require('../src/scram');
+var scram = require('../src/scram');
+var crypto = require('crypto');
 
 describe('SCRAM', function() {
 
-  it('should compute with a callback', function(done) {
-    var scram = new Scram('SHA256');
-    scram.generate(new Buffer(100), function(err, ok) {
-      console.log('DONE', err, '\n', ok);
-      done(err);
-    });
+  var signing_key = crypto.randomBytes(32);
+
+  it('should generate', function(done) {
+    this.slow(300);
+
+    var secret = new Buffer('password', 'utf8');
+    var server = new scram.Server({signing_key: signing_key});
+    var client = new scram.Client();
+
+    var stored_credentials = null;
+
+    server.generate(new Buffer(secret))
+
+      .then(function(credentials) {
+        console.log("CREDENTIALS", credentials);
+
+        stored_credentials = credentials;
+
+        return client.request();
+      })
+
+      .then(function(request) {
+        console.log("REQUEST", request);
+        return server.initiate(stored_credentials, request);
+      })
+
+      .then(function(session) {
+        console.log("SESSION", session);
+        return client.respond(new Buffer(secret), session);
+      })
+
+      .then(function(response) {
+        console.log("RESPONSE", response);
+        return server.validate(response, stored_credentials);
+//        return client.respond(new Buffer(secret), session);
+      })
+
+
+
+      .then(function(success) {
+        console.log('SUCCESS', success);
+        done();
+      }, function(failure) {
+        console.log('FAILURE', failure);
+        done(failure);
+      });
   });
 
-  it('should compute with a promise', function(done) {
-    var scram = new Scram('SHA256');
-    scram.promise(new Buffer(100)).then(function(result) {
-      console.log('DONE', '\n', result);
-      done();
-    }, function(error) {
-      done(error);
-    });
+  it('should compute client', function(done) {
+    this.slow(300);
+
+    var client = new scram.Client();
+    client.respond(new Buffer('password', 'utf8'),
+                   { hash: 'SHA256',
+                     kdf_spec: { algorithm: 'SCRYPT',
+                                 hash: 'SHA256',
+                                 cpu_memory_cost: 32768,
+                                 block_size: 8,
+                                 parallelization: 1,
+                                 derived_key_length: 32 },
+                     salt:         '59M3CrmSuShviOn8JkPDdVXglUjOF27EBd1jujYNja4',
+                     shared_key:   'uArvWZCB1JpdmRfeBk9VyCERjSUY36u-Rzpg6c1FNrU',
+                     client_nonce: 'mhPi8DiLXseDGVnS3PRSffNVH16jmsvjla8vOKuzX0w',
+                     server_nonce: 'WngTwXIOks3ztlz1vXtjmOYgmJoMV-pLj6fLVzq8yuc' })
+      .then(function(result) {
+        console.log(result);
+        done();
+      }, function(error) {
+        done(error);
+      });
   });
 })
 

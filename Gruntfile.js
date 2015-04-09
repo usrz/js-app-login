@@ -1,4 +1,5 @@
 module.exports = function(grunt) {
+  grunt.option('stack', true);
 
   /* Grunt initialization */
   grunt.initConfig({
