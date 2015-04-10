@@ -15,41 +15,22 @@ function unescape(string) {
 };
 
 function encode(data) {
-  var buffer;
-
-  if (! data) {
-    throw new TypeError('Cowardly refusing to encode null data');
-  } else if (util.isString(data)) {
-    buffer = new Buffer(data, 'utf8');
-  } else if (util.isBuffer(data)) {
-    buffer = data;
-  } else {
-    throw new TypeError('Only Buffer or strings can be encoded');
+  if (util.isString(data)) {
+    data = new Buffer(data, 'utf8');
+  } else if (! util.isBuffer(data)) {
+    throw new Error('Data must be a Buffer or utf8 string');
   }
 
-  return escape(buffer.toString('base64'));
+  return escape(data.toString('base64'));
 };
 
-function decodeBuffer(data) {
-  if (! data) {
-    throw new TypeError('Cowardly refusing to decode null data');
-  } else if (util.isString(data)) {
-    return new Buffer(unescape(data), 'base64');
-  } else {
-    throw new TypeError('Only strings can be decoded');
-  }
-}
+function decode(string) {
+  if (! util.isString(string)) throw new Error('Data must be a string');
 
-function decodeString(data) {
-  if (! data) {
-    throw new TypeError('Cowardly refusing to decode null data');
-  } else {
-    return deocdeBuffer(data).toString('utf8');
-  }
+  return new Buffer(unescape(string), 'base64');
 }
 
 exports = module.exports = {
-  encode:       encode,
-  decodeBuffer: decodeBuffer,
-  decodeString: decodeString
+  encode: encode,
+  decode: decode
 }
