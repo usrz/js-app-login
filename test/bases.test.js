@@ -21,11 +21,11 @@ describe('BASE64', function() {
     var decoded = testVectors[i][0];
     var encoded = testVectors[i][2];
 
-    it('should encode test vector ' + 1, function() {
+    it('should encode test vector ' + i, function() {
       expect(base64.encode(decoded)).to.equal(encoded);
     });
 
-    it('should decode test vector ' + 1, function() {
+    it('should decode test vector ' + i, function() {
       expect(base64.decode(encoded).toString('utf8')).to.equal(decoded);
     });
   })(i);
@@ -50,11 +50,11 @@ describe('BASE32', function() {
     var decoded = testVectors[i][0];
     var encoded = testVectors[i][1];
 
-    it('should encode test vector ' + 1, function() {
+    it('should encode test vector ' + i, function() {
       expect(base32.encode(decoded)).to.equal(encoded);
     });
 
-    it('should decode test vector ' + 1, function() {
+    it('should decode test vector ' + i, function() {
       expect(base32.decode(encoded).toString('utf8')).to.equal(decoded);
     });
 
