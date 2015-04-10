@@ -124,7 +124,7 @@ function Server(options) {
 
         // Required from request
         if (! request.client_nonce) throw new Error('No client_nonce available in request');
-        var client_nonce = base64.decodeBuffer(request.client_nonce);
+        var client_nonce = base64.decode(request.client_nonce);
 
         // Generate our server nonce
         var random = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
@@ -160,13 +160,13 @@ function Server(options) {
         if (! session.client_proof) throw new Error('No client_proof available in session');
 
         // Local variables
-        var stored_key = base64.decodeBuffer(credentials.stored_key);
-        var signed_key = base64.decodeBuffer(credentials.signed_key);
+        var stored_key = base64.decode(credentials.stored_key);
+        var signed_key = base64.decode(credentials.signed_key);
         var hash = KDF.knownHashes.validate(credentials.hash);
 
-        var client_proof = base64.decodeBuffer(session.client_proof);
-        var client_nonce = base64.decodeBuffer(session.client_nonce);
-        var server_nonce = base64.decodeBuffer(session.server_nonce);
+        var client_proof = base64.decode(session.client_proof);
+        var client_nonce = base64.decode(session.client_nonce);
+        var server_nonce = base64.decode(session.server_nonce);
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
         // Server signature
@@ -253,13 +253,13 @@ function Client() {
         // Parameters for SCRAM
         var parameters = {
           hash: KDF.knownHashes.validate(session.hash),
-          shared_key: base64.decodeBuffer(session.shared_key),
-          client_nonce: base64.decodeBuffer(session.client_nonce),
-          server_nonce: base64.decodeBuffer(session.server_nonce)
+          shared_key: base64.decode(session.shared_key),
+          client_nonce: base64.decode(session.client_nonce),
+          server_nonce: base64.decode(session.server_nonce)
         };
 
         // Salt and spec for KDF
-        var salt = base64.decodeBuffer(session.salt);
+        var salt = base64.decode(session.salt);
         var kdf_spec = session.kdf_spec;
 
         // Calculate the derived key and inject it in the params
