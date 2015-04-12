@@ -27,6 +27,7 @@
     "express-statuses": "^1.0.3",
     "ms": "^0.7.0",
     "promise": "^7.0.0",
-    "type-is": "^1.6.1"
+    "type-is": "^1.6.1",
+    "ursa": "^0.8.4"
   }
 }

@@ -3,6 +3,7 @@
 var base32 = require('./base32');
 var crypto = require('crypto');
 var util = require('util');
+var ms = require('ms');
 
 /* =========================================================================== */
 
@@ -49,6 +50,13 @@ function Token(options) {
   // Check digits
   if ((! util.isNumber(digits)) || (digits < 6) || (digits > 8)) {
     throw new TypeError('The \'digits\' must be between 6 and 8');
+  }
+
+  // Period normalization
+  if (util.isString(period)) {
+    var millis = ms(period);
+    if (! millis) throw new TypeError('The \'period\' is invalid:' + period);
+    period = millis / 1000;
   }
 
   // Period validation

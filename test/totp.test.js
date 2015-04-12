@@ -41,7 +41,7 @@ describe('TOTP', function() {
         var token = new Token({
           label: 'foo',
           secret: new Buffer('12345678901234567890', 'utf8'),
-          period: 30,
+          period: '30s',
           digits: 6
         });
 
@@ -66,7 +66,7 @@ describe('TOTP', function() {
           label: 'foo',
           algorithm: algorithm,
           secret: secret,
-          period: 30,
+          period: '30s',
           digits: 8
         });
 
@@ -87,7 +87,7 @@ describe('TOTP', function() {
         issuer: 'USRZ Tests',
         algorithm: 'SHA512',
         secret: buffer,
-        period: 120,
+        period: '2 min',
         digits: 8
       });
 

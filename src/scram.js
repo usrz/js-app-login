@@ -2,9 +2,11 @@
 
 var Promise = global.Promise || require('promise');
 var KDF = require('key-derivation');
+var Cipher = require('./cipher');
 var base64 = require('./base64');
 var crypto = require('crypto');
 var util = require('util');
+var ursa = require('ursa');
 
 /* ========================================================================== */
 
@@ -18,24 +20,21 @@ function xor(a, b) {
 }
 
 /* ========================================================================== */
-/* SCRAM SERVER                                                               */
+/* SCRAM STORE                                                                */
 /* ========================================================================== */
-function Server(options) {
+function Store(options) {
   options = options || {};
 
-  var hash              = KDF.knownHashes.validate(options.hash || 'SHA256');
-  var shared_key_length = KDF.knownHashes.digestLength(hash);
-  var signing_key       = util.isBuffer(options.signing_key) ? options.signing_key : null;
-  var secure            = util.isBoolean(options.secure)     ? options.secure      : false;
-  var kdf               = new KDF(options.kdf_spec);
+  var hash        = KDF.knownHashes.validate(options.hash || 'SHA256');
+  var hash_length = KDF.knownHashes.digestLength(hash);
+  var store_key   = util.isBuffer(options.store_key) ? options.store_key : null;
+  var secure      = util.isBoolean(options.secure)   ? options.secure    : false;
+  var kdf         = new KDF(options.kdf_spec);
 
-         var nonce_length = 32;
-
-
-  if (! signing_key) throw new Error('Signing key unavailable');
+  if (! store_key) throw new Error('Store key unavailable');
 
   /* ------------------------------------------------------------------------ */
-  /* Generate SCRAM credentials                                               */
+  /* Generate secrets suitable for being stored                               */
   /* ------------------------------------------------------------------------ */
 
   function generate(secret_key, salt) {
@@ -59,7 +58,7 @@ function Server(options) {
 
         // Calculate a random shared key
         var random = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
-        var shared_key = random.call(crypto, shared_key_length);
+        var shared_key = random.call(crypto, hash_length);
 
         // Let's start with what we have
         var credentials = {
@@ -82,9 +81,9 @@ function Server(options) {
                                .update(client_key)
                                .digest();
 
-        // signed_key := HMAC ( salted_password, signing_key )
+        // signed_key := HMAC ( salted_password, store_key )
         var signed_key = crypto.createHmac(hash, derived_key)
-                               .update(signing_key)
+                               .update(store_key)
                                .digest();
 
         // Remember stored and signed key
@@ -105,6 +104,25 @@ function Server(options) {
         throw error;
       })
   }
+
+  // Immutables
+  Object.defineProperties(this, {
+    'generate': { configurable: false, enumerable: true, value: generate }
+  });
+}
+
+
+/* ========================================================================== */
+/* SCRAM SERVER                                                               */
+/* ========================================================================== */
+function Server(options) {
+  options = options || {};
+
+  var nonce_length = Number(options.nonce_length) || 32;
+  var secure       = util.isBoolean(options.secure) ? options.secure : false;
+
+  if (! options.private_key) throw new Error('Signing key unavailable');
+  var private_key = ursa.coercePrivateKey(options.private_key);
 
   /* ------------------------------------------------------------------------ */
   /* Initiate a SCRAM session                                                 */
@@ -142,8 +160,10 @@ function Server(options) {
       });
   }
 
-  //
-  function validate(session, credentials) {
+  /* ------------------------------------------------------------------------ */
+  /* Validate a SCRAM response                                                */
+  /* ------------------------------------------------------------------------ */
+  function validate(credentials, response) {
 
     return Promise.resolve()
 
@@ -154,19 +174,19 @@ function Server(options) {
         if (! credentials.signed_key) throw new Error('No signed_key available in credentials');
         if (! credentials.hash) throw new Error('No hash available in credentials');
 
-        // Required session parameters
-        if (! session.client_nonce) throw new Error('No client_nonce available in session');
-        if (! session.server_nonce) throw new Error('No server_nonce available in session');
-        if (! session.client_proof) throw new Error('No client_proof available in session');
+        // Required response parameters
+        if (! response.client_nonce) throw new Error('No client_nonce available in response');
+        if (! response.server_nonce) throw new Error('No server_nonce available in response');
+        if (! response.client_proof) throw new Error('No client_proof available in response');
 
         // Local variables
         var stored_key = base64.decode(credentials.stored_key);
         var signed_key = base64.decode(credentials.signed_key);
         var hash = KDF.knownHashes.validate(credentials.hash);
 
-        var client_proof = base64.decode(session.client_proof);
-        var client_nonce = base64.decode(session.client_nonce);
-        var server_nonce = base64.decode(session.server_nonce);
+        var client_proof = base64.decode(response.client_proof);
+        var client_nonce = base64.decode(response.client_nonce);
+        var server_nonce = base64.decode(response.server_nonce);
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
         // Server signature
@@ -187,47 +207,72 @@ function Server(options) {
           throw new Error("Authentication failure");
         }
 
-        //
-        if (signed_key) {
-          var server_proof = crypto.createHmac(hash, signed_key)
-                                   .update(auth_message)
-                                   .digest();
-          return { server_proof: server_proof };
-        } else {
-          return true;
-        }
+        // Sign our "signed_key" and "auth_message"
+        var signer = ursa.createSigner(hash)
+        signer.update(signed_key);
+        signer.update(auth_message);
+        var server_proof = signer.sign(private_key);
 
+        // Return our server proof
+        return {
+          hash: hash,
+          client_nonce: response.client_nonce,
+          server_nonce: response.server_nonce,
+          server_proof: base64.encode(server_proof)
+        };
       });
+  }
 
+  /* ------------------------------------------------------------------------ */
+  /* Replace the SCRAM secret                                                 */
+  /* ------------------------------------------------------------------------ */
+  function update(credentials, replacement) {
+
+    // Required replacement parameters
+    if (! replacement.client_nonce) throw new Error('No client_nonce available in replacement');
+    if (! replacement.server_nonce) throw new Error('No server_nonce available in replacement');
+
+
+    var client_nonce = base64.decode(replacement.client_nonce);
+    var server_nonce = base64.decode(replacement.server_nonce);
+    var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
+    var signed_key = base64.decode(credentials.signed_key);
+
+    var decrypted = new Cipher('A256GCM').decrypt(signed_key, replacement, auth_message);
+
+    return decrypted;
 
   }
 
-
-
   // Immutables
   Object.defineProperties(this, {
-    'generate': { configurable: false, enumerable: true, value: generate },
     'initiate': { configurable: false, enumerable: true, value: initiate },
     'validate': { configurable: false, enumerable: true, value: validate },
+    'update':   { configurable: false, enumerable: true, value: update   },
   });
 }
 
 /* ========================================================================== */
 /* SCRAM CLIENT                                                               */
 /* ========================================================================== */
-function Client() {
-  // No configuration options
-  var secure = false;
-  var nonce_length = 32;
+function Client(options) {
+  options = options || {};
+
+  // Calculate a random client_nonce
+  var nonce_length = Number(options.nonce_length) || 32;
+  var secure       = util.isBoolean(options.secure) ? options.secure : false;
+  var random       = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
+  var client_nonce = random.call(crypto, nonce_length);
+
+  var store_key  = util.isBuffer(options.store_key) ? options.store_key : null;
+  var public_key = options.public_key && ursa.coercePublicKey(options.public_key);
+
+  // Our derived key and auth message for validation
+  var derived_key = null;
 
   function request() {
-    return Promise.resolve()
+    return Promise.resolve(client_nonce)
       .then(function() {
-
-        // Calculate a random client_nonce
-        var random = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
-        var client_nonce = random.call(crypto, nonce_length);
-
         return { client_nonce: base64.encode(client_nonce) }
       });
   }
@@ -248,84 +293,139 @@ function Client() {
         if (! session.shared_key) throw new Error('No shared_key available in session');
         if (! session.kdf_spec) throw new Error('No kdf_spec specified in session');
         if (! session.salt) throw new Error('No salt specified in session');
-        if (! session.hash) throw new Error('No salt specified in session');
+        if (! session.hash) throw new Error('No hash specified in session');
+
+        // Validate the client_nonce in the session
+        if (Buffer.compare(client_nonce, base64.decode(session.client_nonce)) != 0) {
+          throw new Error('Client nonces mismatch');
+        }
 
         // Parameters for SCRAM
-        var parameters = {
-          hash: KDF.knownHashes.validate(session.hash),
-          shared_key: base64.decode(session.shared_key),
-          client_nonce: base64.decode(session.client_nonce),
-          server_nonce: base64.decode(session.server_nonce)
-        };
+        var hash = KDF.knownHashes.validate(session.hash);
+        var shared_key = base64.decode(session.shared_key);
+        var server_nonce = base64.decode(session.server_nonce);
+        var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
         // Salt and spec for KDF
         var salt = base64.decode(session.salt);
         var kdf_spec = session.kdf_spec;
 
-        // Calculate the derived key and inject it in the params
+        // Calculate the derived key and continue
         return new KDF(kdf_spec).promiseKey(secret_key, salt)
           .then(function(hashed_key) {
 
             // Wipe the secret key
             secret_key.fill(0);
 
-            // Inject the derived key in our parameters and go
-            parameters.derived_key = hashed_key.derived_key;
-            return parameters;
-          });
+            // Remember the derived key for verification
+            derived_key = hashed_key.derived_key;
+
+            // Compute the client_key
+            var client_key = crypto.createHmac(hash, derived_key)
+                                   .update(shared_key)
+                                   .digest();
+
+            // Compute our stored_key
+            var stored_key = crypto.createHash(hash)
+                                   .update(client_key)
+                                   .digest();
+
+            // Compute the client signature
+            var client_signature = crypto.createHmac(hash, stored_key)
+                                         .update(auth_message)
+                                         .digest();
+
+            // Compute and return the client proof
+            var client_proof = xor(client_key, client_signature);
+
+            // Wipe our internal buffers
+            client_key.fill(0);
+            stored_key.fill(0);
+            client_signature.fill(0);
+
+            // Return nonces and proof
+            return {
+              client_nonce: base64.encode(client_nonce),
+              server_nonce: base64.encode(server_nonce),
+              client_proof: base64.encode(client_proof)
+            }
+          })
       })
+  }
 
-      .then(function(parameters) {
+  function verifyAndReplace(validation, secret) {
 
-        // Local variables
-        var hash = parameters.hash;
-        var shared_key = parameters.shared_key;
-        var derived_key = parameters.derived_key;
-        var client_nonce = parameters.client_nonce;
-        var server_nonce = parameters.server_nonce;
+    return Promise.resolve()
+      .then(function() {
+
+        // Require keys for validation
+        if (! public_key) throw new Error('No public key available for verification');
+        if (! store_key) throw new Error('No store key available for verification');
+
+        // Check that we have nonces and proof
+        if (! validation.client_nonce) throw new Error('No client nonce available in validation');
+        if (! validation.server_nonce) throw new Error('No server nonce available in validation');
+        if (! validation.server_proof) throw new Error('No server proof available in validation');
+        if (! validation.hash) throw new Error('No hash specified in hash');
+
+        // Validate the client_nonce in the session, server_nonce can be switched
+        if (Buffer.compare(client_nonce, base64.decode(validation.client_nonce)) != 0) {
+          throw new Error('Client nonces mismatch');
+        }
+
+        // Local variables for computation
+        var hash = KDF.knownHashes.validate(validation.hash);
+        var server_proof = base64.decode(validation.server_proof);
+        var server_nonce = base64.decode(validation.server_nonce);
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
-        // Compute the client_key
-        var client_key = crypto.createHmac(hash, derived_key)
-                               .update(shared_key)
+        // Calculate the "signed_key" as stored by the server
+        // signed_key := HMAC ( salted_password, store_key )
+        var signed_key = crypto.createHmac(hash, derived_key)
+                               .update(store_key)
                                .digest();
 
-        // Compute our stored_key
-        var stored_key = crypto.createHash(hash)
-                               .update(client_key)
-                               .digest();
+        // Verify the "server_proof" with "auth_message"
+        var verifier = ursa.createVerifier(hash)
+        verifier.update(signed_key);
+        verifier.update(auth_message);
 
-        // Compute the client signature
-        var client_signature = crypto.createHmac(hash, stored_key)
-                                     .update(auth_message)
-                                     .digest();
+        // Verify the signature and fail if wrong
+        var result = verifier.verify(public_key, server_proof);
+        if (result !== true) throw new Error('Verification failure');
 
-        // Compute and return the client proof
-        var client_proof = xor(client_key, client_signature);
+        // If no password to update, bail!
+        if (! secret) return true;
 
-        // Wipe our internal buffers
-        client_key.fill(0);
-        stored_key.fill(0);
-        client_signature.fill(0);
+        var result = new Cipher('A256GCM').encrypt(signed_key, secret, auth_message);
 
-        // Return nonces and proof
-        return {
-          client_nonce: base64.encode(client_nonce),
-          server_nonce: base64.encode(server_nonce),
-          client_proof: base64.encode(client_proof)
-        }
-      })
+        result.server_nonce = base64.encode(server_nonce);
+        result.client_nonce = base64.encode(client_nonce);
+
+        return result;
+      });
+  }
+
+  function replace(validation, secret) {
+    return verifyAndReplace(validation, secret);
+  }
+
+  function verify(validation) {
+    return verifyAndReplace(validation);
   }
 
   // Immutables
   Object.defineProperties(this, {
     'request': { configurable: false, enumerable: true, value: request },
     'respond': { configurable: false, enumerable: true, value: respond },
+    'replace': { configurable: false, enumerable: true, value: replace },
+    'verify':  { configurable: false, enumerable: true, value: verify  },
   });
 }
 
 
 exports = module.exports = Object.freeze({
+  Store:  Store,
   Server: Server,
   Client: Client
 });
