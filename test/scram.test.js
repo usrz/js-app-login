@@ -7,10 +7,9 @@ var KDF = require('key-derivation');
 var crypto = require('crypto');
 var ursa = require('ursa');
 
-describe('SCRAM', function() {
+describe.only('SCRAM', function() {
 
   var password;
-  var store_key;
   var private_key;
   var public_key;
   var public_key2;
@@ -20,7 +19,6 @@ describe('SCRAM', function() {
     var key     = ursa.generatePrivateKey(512);
     private_key = key.toPrivatePem().toString();
     public_key  = key.toPublicPem().toString();
-    store_key   = crypto.randomBytes(32);
     password    = crypto.randomBytes(32);
   });
 
@@ -28,7 +26,7 @@ describe('SCRAM', function() {
     this.slow(100);
 
     var secret = new Buffer(password);
-    var store = new scram.Store({store_key: store_key});
+    var store = new scram.Store();
 
     store.generate(secret).then(function(storable) {
 
@@ -39,7 +37,7 @@ describe('SCRAM', function() {
       expect(base64.decode(storable.salt).length).to.equal(32);
       expect(base64.decode(storable.shared_key).length).to.equal(32);
       expect(base64.decode(storable.stored_key).length).to.equal(32);
-      expect(base64.decode(storable.signed_key).length).to.equal(32);
+      expect(base64.decode(storable.server_key).length).to.equal(32);
 
       // Check that we actually have reset the buffer
       expect(Buffer.compare(secret, password)).not.to.equal(0);
@@ -59,7 +57,7 @@ describe('SCRAM', function() {
     this.slow(100);
 
     var server = new scram.Server({private_key: private_key});
-    var client = new scram.Client({public_key: public_key, store_key: store_key});
+    var client = new scram.Client({public_key: public_key});
 
     // Clone the password buffer
     var secret = new Buffer(password);
@@ -83,7 +81,7 @@ describe('SCRAM', function() {
         console.log("SESSION", session, '\n');
 
         // Session must be the same as credentials, minus signed key, plus nonces
-        expect(session.signed_key).not.to.exist;
+        expect(session.server_key).not.to.exist;
 
         expect(session.hash).to.equal(credentials.hash);
         expect(session.salt).to.equal(credentials.salt);
@@ -180,7 +178,7 @@ describe('SCRAM', function() {
     var wrong_public_key = ursa.generatePrivateKey(512).toPublicPem().toString();
 
     var server = new scram.Server({private_key: private_key});
-    var client = new scram.Client({public_key: wrong_public_key, store_key: store_key});
+    var client = new scram.Client({public_key: wrong_public_key});
 
     // The password is correct!
     var secret = new Buffer(password);

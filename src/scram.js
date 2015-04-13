@@ -1,5 +1,31 @@
 'use strict';
 
+/* ========================================================================== *
+ * SCRAM (RFC-5802)                                                           *
+ * -------------------------------------------------------------------------- *
+ * SaltedPassword  := Hi(Normalize(password), salt, i)                        *
+ *                                                                            *
+ * ClientKey       := HMAC(SaltedPassword, "Client Key")                      *
+ * StoredKey       := H(ClientKey)                                            *
+ * ServerKey       := HMAC(SaltedPassword, "Server Key")                      *
+ *                                                                            *
+ * AuthMessage     := client-first-message-bare + "," +                       *
+ *                    server-first-message + "," +                            *
+ *                    client-final-message-without-proof                      *
+ *                                                                            *
+ * ClientSignature := HMAC(StoredKey, AuthMessage)                            *
+ * ClientProof     := ClientKey XOR ClientSignature                           *
+ *                                                                            *
+ * ServerSignature := HMAC(ServerKey, AuthMessage)                            *
+ *                                                                            *
+ * -------------------------------------------------------------------------- *
+ * In our extension:                                                          *
+ *                                                                            *
+ * - Replace "Client Key" (string) with SharedKey (random)                    *
+ * - Replace "Server Key" (string) with HMAC(ClientKey, SharedKey)            *
+ * - Rename ServerSignature with ServerProof                                  *
+ * ========================================================================== */
+
 var Promise = global.Promise || require('promise');
 var KDF = require('key-derivation');
 var Cipher = require('./cipher');
@@ -27,11 +53,8 @@ function Store(options) {
 
   var hash        = KDF.knownHashes.validate(options.hash || 'SHA256');
   var hash_length = KDF.knownHashes.digestLength(hash);
-  var store_key   = util.isBuffer(options.store_key) ? options.store_key : null;
   var secure      = util.isBoolean(options.secure)   ? options.secure    : false;
   var kdf         = new KDF(options.kdf_spec);
-
-  if (! store_key) throw new Error('Store key unavailable');
 
   /* ------------------------------------------------------------------------ */
   /* Generate secrets suitable for being stored                               */
@@ -81,14 +104,18 @@ function Store(options) {
                                .update(client_key)
                                .digest();
 
-        // signed_key := HMAC ( salted_password, store_key )
-        var signed_key = crypto.createHmac(hash, derived_key)
+        var store_key = crypto.createHmac(hash, client_key)
+                               .update(shared_key)
+                               .digest();
+
+        // server_key := HMAC ( salted_password, store_key )
+        var server_key = crypto.createHmac(hash, derived_key)
                                .update(store_key)
                                .digest();
 
         // Remember stored and signed key
         credentials.stored_key = base64.encode(stored_key);
-        credentials.signed_key = base64.encode(signed_key);
+        credentials.server_key = base64.encode(server_key);
 
         // Clean up after ourselfves
         derived_key.fill(0);
@@ -171,7 +198,7 @@ function Server(options) {
 
         // Required from credentials
         if (! credentials.stored_key) throw new Error('No stored_key available in credentials');
-        if (! credentials.signed_key) throw new Error('No signed_key available in credentials');
+        if (! credentials.server_key) throw new Error('No server_key available in credentials');
         if (! credentials.hash) throw new Error('No hash available in credentials');
 
         // Required response parameters
@@ -181,7 +208,7 @@ function Server(options) {
 
         // Local variables
         var stored_key = base64.decode(credentials.stored_key);
-        var signed_key = base64.decode(credentials.signed_key);
+        var server_key = base64.decode(credentials.server_key);
         var hash = KDF.knownHashes.validate(credentials.hash);
 
         var client_proof = base64.decode(response.client_proof);
@@ -207,11 +234,14 @@ function Server(options) {
           throw new Error("Authentication failure");
         }
 
-        // Sign our "signed_key" and "auth_message"
-        var signer = ursa.createSigner(hash)
-        signer.update(signed_key);
-        signer.update(auth_message);
-        var server_proof = signer.sign(private_key);
+        // Sign our "server_key" and "auth_message"
+        var server_proof = crypto.createHmac(hash, server_key)
+                                 .update(auth_message)
+                                 .digest();
+        // var signer = ursa.createSigner(hash)
+        // signer.update(server_key);
+        // signer.update(auth_message);
+        // var server_proof = signer.sign(private_key);
 
         // Return our server proof
         return {
@@ -236,9 +266,11 @@ function Server(options) {
     var client_nonce = base64.decode(replacement.client_nonce);
     var server_nonce = base64.decode(replacement.server_nonce);
     var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
-    var signed_key = base64.decode(credentials.signed_key);
 
-    var decrypted = new Cipher('A256GCM').decrypt(signed_key, replacement, auth_message);
+    /// WRONG !!!! SIGNED KEY IS
+    var server_key = base64.decode(credentials.server_key);
+
+    var decrypted = new Cipher('A256GCM').decrypt(server_key, replacement, auth_message);
 
     return decrypted;
 
@@ -264,16 +296,21 @@ function Client(options) {
   var random       = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
   var client_nonce = random.call(crypto, nonce_length);
 
-  var store_key  = util.isBuffer(options.store_key) ? options.store_key : null;
   var public_key = options.public_key && ursa.coercePublicKey(options.public_key);
 
   // Our derived key and auth message for validation
   var derived_key = null;
+  var store_key = null;
 
   function request() {
     return Promise.resolve(client_nonce)
       .then(function() {
-        return { client_nonce: base64.encode(client_nonce) }
+        return {
+          // TODO
+          subject: 'subject',
+          audience: ['foo', 'bar', 'baz' ],
+          client_nonce: base64.encode(client_nonce)
+        }
       });
   }
 
@@ -324,6 +361,12 @@ function Client(options) {
             var client_key = crypto.createHmac(hash, derived_key)
                                    .update(shared_key)
                                    .digest();
+
+            // Compute and remember the store key
+            store_key = crypto.createHmac(hash, client_key)
+                               .update(shared_key)
+                               .digest();
+
 
             // Compute our stored_key
             var stored_key = crypto.createHash(hash)
@@ -379,25 +422,31 @@ function Client(options) {
         var server_nonce = base64.decode(validation.server_nonce);
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
-        // Calculate the "signed_key" as stored by the server
-        // signed_key := HMAC ( salted_password, store_key )
-        var signed_key = crypto.createHmac(hash, derived_key)
+        // Calculate the "server_key" as stored by the server
+        // server_key := HMAC ( salted_password, store_key )
+        var server_key = crypto.createHmac(hash, derived_key)
                                .update(store_key)
                                .digest();
 
         // Verify the "server_proof" with "auth_message"
-        var verifier = ursa.createVerifier(hash)
-        verifier.update(signed_key);
-        verifier.update(auth_message);
+        var derived_proof = crypto.createHmac(hash, server_key)
+                                  .update(auth_message)
+                                  .digest();
+        if (Buffer.compare(derived_proof, server_proof) != 0) throw new Error('Verification failure');
 
-        // Verify the signature and fail if wrong
-        var result = verifier.verify(public_key, server_proof);
-        if (result !== true) throw new Error('Verification failure');
+        // TODO TODO TODO
+        // var verifier = ursa.createVerifier(hash)
+        // verifier.update(server_key);
+        // verifier.update(auth_message);
+
+        // // Verify the signature and fail if wrong
+        // var result = verifier.verify(public_key, server_proof);
+        // if (result !== true) throw new Error('Verification failure');
 
         // If no password to update, bail!
         if (! secret) return true;
 
-        var result = new Cipher('A256GCM').encrypt(signed_key, secret, auth_message);
+        var result = new Cipher('A256GCM').encrypt(server_key, secret, auth_message);
 
         result.server_nonce = base64.encode(server_nonce);
         result.client_nonce = base64.encode(client_nonce);
