@@ -43,6 +43,9 @@ function Server(options) {
 
   var nonce_length = Number(options.nonce_length) || 32;
   var secure       = util.isBoolean(options.secure) ? options.secure : false;
+  var verifier = util.isFunction(options.verifier) ? options.verifier : null;
+
+  if (! verifier) throw new Error("Session verifier unspecified");
 
   /* ------------------------------------------------------------------------ */
   /* Initiate a SCRAM session                                                 */

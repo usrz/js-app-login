@@ -8,6 +8,8 @@ var util = require('util');
 var Cipher = require('./Cipher');
 
 var xor = require('./tools').xor;
+var normalize = require('./tools').normalize;
+var flatten = require('./tools').flatten;
 
 /* ========================================================================== */
 /* SCRAM CLIENT                                                               */
@@ -25,16 +27,14 @@ function Client(options) {
   var derived_key = null;
   var store_key = null;
 
-  function request() {
-    return Promise.resolve(client_nonce)
-      .then(function() {
-        return {
-          // TODO
-          subject: 'subject',
-          audience: ['foo', 'bar', 'baz' ],
-          client_nonce: base64.encode(client_nonce)
-        }
-      });
+  function request(subject, audience) {
+    return Promise.resolve(flatten(arguments, [], true))
+      .then(function(args) {
+        return normalize({
+          subject: args[0],
+          audience: args.splice(1)
+        });
+      })
   }
 
   function respond(secret_key, session) {
