@@ -5,22 +5,11 @@ var base64 = require('../src/base64');
 var scram = require('../src/scram');
 var KDF = require('key-derivation');
 var crypto = require('crypto');
-var ursa = require('ursa');
 
 describe.only('SCRAM', function() {
 
-  var password;
-  var private_key;
-  var public_key;
-  var public_key2;
+  var password = crypto.randomBytes(32);
   var credentials;
-
-  before(function() {
-    var key     = ursa.generatePrivateKey(512);
-    private_key = key.toPrivatePem().toString();
-    public_key  = key.toPublicPem().toString();
-    password    = crypto.randomBytes(32);
-  });
 
   it('should generate some credentials to store', function(done) {
     this.slow(100);
@@ -43,7 +32,7 @@ describe.only('SCRAM', function() {
       expect(Buffer.compare(secret, password)).not.to.equal(0);
 
       // Remember our credentials
-      //console.log("CREDENTIALS", storable, '\n');
+      console.log("CREDENTIALS", storable, '\n');
       credentials = storable;
       done();
     })
@@ -56,8 +45,8 @@ describe.only('SCRAM', function() {
     expect(credentials, "Credentials unavailable").to.exist;
     this.slow(100);
 
-    var server = new scram.Server({private_key: private_key});
-    var client = new scram.Client({public_key: public_key});
+    var server = new scram.Server();
+    var client = new scram.Client();
 
     // Clone the password buffer
     var secret = new Buffer(password);
@@ -139,7 +128,7 @@ describe.only('SCRAM', function() {
     expect(credentials, "Credentials unavailable").to.exist;
     this.slow(100);
 
-    var server = new scram.Server({private_key: private_key});
+    var server = new scram.Server();
     var client = new scram.Client();
 
     // This is not the right password
@@ -164,47 +153,6 @@ describe.only('SCRAM', function() {
 
       }, function(error) {
         expect(error.message).to.equal('Authentication failure');
-        done();
-      })
-
-      .catch(function(err) { done(err) });
-  });
-
-  it('should fail validating with the wrong public key', function(done) {
-    expect(credentials, "Credentials unavailable").to.exist;
-    this.slow(100);
-
-    // Validate against the wrong public key
-    var wrong_public_key = ursa.generatePrivateKey(512).toPublicPem().toString();
-
-    var server = new scram.Server({private_key: private_key});
-    var client = new scram.Client({public_key: wrong_public_key});
-
-    // The password is correct!
-    var secret = new Buffer(password);
-
-    client.request()
-
-      .then(function(request) {
-        return server.initiate(credentials, request);
-      })
-
-      .then(function(session) {
-        return client.respond(secret, session);
-      })
-
-      .then(function(response) {
-        return server.validate(credentials, response);
-      })
-
-      .then(function(validation) {
-        return client.verify(validation);
-      })
-
-      .then(function(verification) {
-        done(new Error("Unexpected verification: " + JSON.stringify(verification, null, 2)));
-      }, function(error) {
-        expect(error).to.be.instanceof(Error);
         done();
       })
 

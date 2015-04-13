@@ -1,6 +1,6 @@
 'use strict';
 
-var base64 = require('./base64');
+var base64 = require('../base64');
 var crypto = require('crypto');
 var util = require('util');
 
