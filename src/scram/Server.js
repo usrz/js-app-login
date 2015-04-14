@@ -5,35 +5,9 @@ var util = require('util');
 var crypto = require('crypto');
 var base64 = require('../base64');
 var xor = require('./tools').xor;
+var randomBase64 = require('./tools').randomBase64;
+var normalize = require('./tools').normalize;
 var Cipher = require('./Cipher');
-
-/* Validate subject and audience, returns them concatenated */
-function validateMessage(message) {
-  if (! message.subject) throw new Error('No subject available in message');
-  if (! util.isString(message.subject)) throw new Error('Message subject must be a string');
-
-  var concatenation = message.subject;
-  if (message.audience) {
-    if (util.isString(message.audience)) {
-      concatenation += message.audience;
-    } else if (util.isArray(message.audience)) {
-      for (var i = 0; i < message.audience.length; i ++) {
-        var audience = message.audience[i];
-        if (! audience) {
-          throw new TypeError('Invalid audience at index ' + i + ' of message');
-        } else if (! util.isString(audience)) {
-          throw new TypeError('Audience at index ' + i + ' of message is not a string');
-        } else {
-          concatenation += audience;
-        }
-      }
-    } else {
-      throw new TypeError('Audience must be a string or array of strings');
-    }
-  }
-
-  return concatenation;
-}
 
 /* ========================================================================== */
 /* SCRAM SERVER                                                               */
@@ -43,9 +17,6 @@ function Server(options) {
 
   var nonce_length = Number(options.nonce_length) || 32;
   var secure       = util.isBoolean(options.secure) ? options.secure : false;
-  var verifier = util.isFunction(options.verifier) ? options.verifier : null;
-
-  if (! verifier) throw new Error("Session verifier unspecified");
 
   /* ------------------------------------------------------------------------ */
   /* Initiate a SCRAM session                                                 */
@@ -54,8 +25,8 @@ function Server(options) {
   function initiate(credentials, request) {
     return Promise.resolve(credentials)
       .then(function(credentials) {
-        if (!credentials) throw new Error('No credentials available');
         if (!request) throw new Error('No request available');
+        if (!credentials) throw new Error('No credentials available');
 
         // Required from credentials
         if (! credentials.hash) throw new Error('No hash available in credentials');
@@ -63,28 +34,18 @@ function Server(options) {
         if (! credentials.kdf_spec) throw new Error('No kdf_spec available in credentials');
         if (! credentials.shared_key) throw new Error('No shared_key available in credentials');
 
-        // Valiate the request (should throw, but just in case)
-        if (! validateMessage(request)) throw new Error('Request subject and/or audiences not valid');
+        // Normalize the basic request
+        var session = normalize(request);
 
-        // Required from request, just decode it for validation and reencode below
-        if (! request.client_nonce) throw new Error('No client_nonce available in request');
-        var client_nonce = base64.decode(request.client_nonce);
+        // Add in our session fields
+        session.server_nonce = randomBase64(nonce_length, secure),
+        session.hash =         credentials.hash,
+        session.salt =         credentials.salt,
+        session.kdf_spec =     credentials.kdf_spec,
+        session.shared_key =   credentials.shared_key
 
-        // Generate our server nonce
-        var random = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
-        var server_nonce = random.call(crypto, nonce_length);
-
-        // Just wrap what we got
-        return {
-          subject:      request.subject,
-          audience:     request.audience,
-          client_nonce: base64.encode(client_nonce),
-          server_nonce: base64.encode(server_nonce),
-          hash:         credentials.hash,
-          salt:         credentials.salt,
-          kdf_spec:     credentials.kdf_spec,
-          shared_key:   credentials.shared_key
-        }
+        // Return the session
+        return session;
       });
   }
 

@@ -10,6 +10,7 @@ var Cipher = require('./Cipher');
 var xor = require('./tools').xor;
 var normalize = require('./tools').normalize;
 var flatten = require('./tools').flatten;
+var randomBase64 = require('./tools').randomBase64;
 
 /* ========================================================================== */
 /* SCRAM CLIENT                                                               */
@@ -20,10 +21,9 @@ function Client(options) {
   // Calculate an initial random client_nonce
   var nonce_length = Number(options.nonce_length) || 32;
   var secure       = util.isBoolean(options.secure) ? options.secure : false;
-  var random       = secure ? crypto.randomBytes : crypto.pseudoRandomBytes;
-  var client_nonce = random.call(crypto, nonce_length);
 
   // Our derived key and auth message for validation
+  var client_nonce = null;
   var derived_key = null;
   var store_key = null;
 
@@ -47,20 +47,21 @@ function Client(options) {
         // Validate secret key
         if (! util.isBuffer(secret_key)) throw new TypeError('Secret key must be a buffer');
 
-        // Required parameters
-        if (! session.client_nonce) throw new Error('No client_nonce available in session');
+        // Required parameters from the session
         if (! session.server_nonce) throw new Error('No server_nonce available in session');
         if (! session.shared_key) throw new Error('No shared_key available in session');
         if (! session.kdf_spec) throw new Error('No kdf_spec specified in session');
         if (! session.salt) throw new Error('No salt specified in session');
         if (! session.hash) throw new Error('No hash specified in session');
 
-        // Validate the client_nonce in the session
-        if (Buffer.compare(client_nonce, base64.decode(session.client_nonce)) != 0) {
-          throw new Error('Client nonces mismatch');
-        }
+        // Start with a new response
+        var response = normalize(session);
+        response.s
+
 
         // Parameters for SCRAM
+        client_nonce = randomBuffer(nonce_length, secure);
+
         var hash = KDF.knownHashes.validate(session.hash);
         var shared_key = base64.decode(session.shared_key);
         var server_nonce = base64.decode(session.server_nonce);

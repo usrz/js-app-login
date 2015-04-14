@@ -104,14 +104,24 @@ describe.only('SCRAM', function() {
     expect(credentials, "Credentials unavailable").to.exist;
     this.slow(100);
 
+    // Server nonce, verifier for server and updater to check it changes
     var server_nonce = new Buffer(0);
-    var verifier = function(session) {
-      if (Buffer.compare(session.server_nonce, server_nonce) == 0) return true;
-      throw new Error('Server nonce mismatch');
-    }
-    var updater = function(promise) {
+    var verifyNonce = function(promise) {
       return promise.then(function(message) {
+        if (! message.server_nonce) throw new Error("No server nonce in message");
+        var message_nonce = base64.decode(message.server_nonce);
+        if (Buffer.compare(message_nonce, server_nonce) == 0) {
+          return message;
+        } else {
+          throw new Error('Server nonce mismatch');
+        }
+      });
+    }
+    var updateNonce = function(promise) {
+      return promise.then(function(message) {
+        if (! message.server_nonce) throw new Error("No server nonce in message");
         var new_nonce = base64.decode(message.server_nonce);
+        if (new_nonce.length < 32) throw new Error("New server nonce is too short");
         if (Buffer.compare(new_nonce, server_nonce) != 0) {
           server_nonce = new_nonce;
           return message;
@@ -121,44 +131,38 @@ describe.only('SCRAM', function() {
       });
     }
 
-    var server = new scram.Server({verifier: verifier});
+    // Server, client and (cloned) password
+    var server = new scram.Server();
     var client = new scram.Client();
-
-    // Clone the password buffer
     var secret = new Buffer(password);
 
-    // Things to validate along the way
-    var client_nonce;
-    var server_nonce;
-
+    // Start with a client simple request
     client.request('test@example.org', 'audience-1')
 
       .then(function(request) {
         console.log("REQUEST", request, '\n');
 
-        client_nonce = base64.decode(request.client_nonce);
-        expect(client_nonce.length).to.equal(32);
+        expect(request).to.eql({
+          subject: 'test@example.org',
+          audience: 'audience-1',
+        });
 
-        return updater(server.initiate(credentials, request));
+        // Let the server initiate a session from the request
+        return updateNonce(server.initiate(credentials, request));
       })
 
       .then(function(session) {
         console.log("SESSION", session, '\n');
 
         // Session must be the same as credentials, minus signed key, plus nonces
-        expect(session.server_key).not.to.exist;
-
+        expect(session.server_key).not.to.exist; // <--- NEVER TRANSFER
         expect(session.hash).to.equal(credentials.hash);
         expect(session.salt).to.equal(credentials.salt);
         expect(session.kdf_spec).to.eql(credentials.kdf_spec);
         expect(session.shared_key).to.equal(credentials.shared_key);
 
-        server_nonce = base64.decode(session.server_nonce);
-        expect(server_nonce.length).to.equal(32);
-
-        expect(base64.decode(session.client_nonce)).to.eql(client_nonce);
-
-        return client.respond(secret, session);
+        // Let the client respond
+        return verifyNonce(client.respond(secret, session));
       })
 
       .then(function(response) {
