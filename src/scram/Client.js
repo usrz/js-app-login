@@ -157,15 +157,24 @@ function Client(options) {
         var derived_proof = crypto.createHmac(hash, server_key)
                                   .update(auth_message)
                                   .digest();
-        if (Buffer.compare(derived_proof, server_proof) != 0) throw new Error('Verification failure');
+        if (Buffer.compare(derived_proof, server_proof) != 0) {
+          throw new Error('Verification failure');
+        }
 
         // If no password to update, bail!
         if (! secret) return true;
 
+        // Replace the client proof and authentication message
+        client_nonce = randomBuffer(nonce_length, secure);
+        auth_message = Buffer.concat([ client_nonce, server_nonce ]);
+
+        // Compute the result
         var result = new Cipher('A256GCM').encrypt(server_key, secret, auth_message);
 
         result.server_nonce = base64.encode(server_nonce);
         result.client_nonce = base64.encode(client_nonce);
+
+        // TODO wipe buffers
 
         return result;
       });
