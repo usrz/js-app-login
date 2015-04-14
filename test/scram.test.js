@@ -203,7 +203,7 @@ describe.only('SCRAM', function() {
       .catch(function(err) { done(err) });
   });
 
-  it.skip('should fail authenticating with the wrong password', function(done) {
+  it('should fail authenticating with the wrong password', function(done) {
     expect(credentials, "Credentials unavailable").to.exist;
     this.slow(100);
 
@@ -213,7 +213,7 @@ describe.only('SCRAM', function() {
     // This is not the right password
     var secret = crypto.randomBytes(32);
 
-    client.request()
+    client.request("test@example.org")
 
       .then(function(request) {
         return server.initiate(credentials, request);
