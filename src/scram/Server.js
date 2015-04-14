@@ -6,6 +6,7 @@ var crypto = require('crypto');
 var base64 = require('../base64');
 var xor = require('./tools').xor;
 var randomBase64 = require('./tools').randomBase64;
+var randomBuffer = require('./tools').randomBuffer;
 var normalize = require('./tools').normalize;
 var Cipher = require('./Cipher');
 
@@ -79,35 +80,57 @@ function Server(options) {
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
         // Server signature
+        // -> ServerSignature := HMAC(ServerKey, AuthMessage)
         var server_signature = crypto.createHmac(hash, stored_key)
                                      .update(auth_message)
                                      .digest();
 
         // Derive client key
-        var client_key = xor(client_proof, server_signature);
+        // -> Specified as -> ClientKey := HMAC(SaltedPassword, "Client Key")
+        // -> Client sends -> XOR(ClientKey, ClientSignature)
+        var derived_client_key = xor(client_proof, server_signature);
 
         // Derive Stored key
-        var derived_key = crypto.createHash(hash)
-                                .update(client_key)
-                                .digest();
+        // -> StoredKey := H(ClientKey)
+        var derived_stored_key = crypto.createHash(hash)
+                                       .update(derived_client_key)
+                                       .digest();
 
         // Compare derived and stored key
-        if (Buffer.compare(derived_key, stored_key) != 0) {
+        if (Buffer.compare(derived_stored_key, stored_key) != 0) {
           throw new Error("Authentication failure");
         }
 
+        // Compute a *NEW* server nonce, and resulting auth_message!
+        server_nonce = randomBuffer(nonce_length, secure);
+        auth_message = Buffer.concat([ client_nonce, server_nonce ]);
+
         // Sign our "server_key" and "auth_message"
+        // -> ServerProof := HMAC(ServerKey, AuthMessage)
         var server_proof = crypto.createHmac(hash, server_key)
                                  .update(auth_message)
                                  .digest();
 
-        // Return our server proof
-        return {
-          hash: hash,
-          client_nonce: response.client_nonce,
-          server_nonce: response.server_nonce,
-          server_proof: base64.encode(server_proof)
-        };
+        // Instrument our validation response
+        var validation = normalize(response);
+        validation.client_nonce = base64.encode(client_nonce);
+        validation.server_nonce = base64.encode(server_nonce);
+        validation.server_proof = base64.encode(server_proof);
+
+        // Wipe our buffers
+        stored_key.fill(0);
+        server_key.fill(0);
+        client_proof.fill(0);
+        client_nonce.fill(0);
+        server_nonce.fill(0);
+        auth_message.fill(0);
+        server_proof.fill(0);
+        server_signature.fill(0);
+        derived_client_key.fill(0);
+        derived_stored_key.fill(0);
+
+        // Return the server proof & co.
+        return validation;
       });
   }
 

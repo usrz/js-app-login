@@ -48,7 +48,7 @@ function Store(options) {
         // -> SaltedPassword := KDF(password, kdf_spec)
         var hashed_key = derived_key.derived_key;
 
-        // Calculate the client, stored, cipher and server keys
+        // Calculate the client, stored, master and server keys
 
         // -> ClientKey := HMAC(SaltedPassword, SharedKey)
         var client_key = crypto.createHmac(hash, hashed_key)
@@ -60,14 +60,14 @@ function Store(options) {
                                .update(client_key)
                                .digest();
 
-        // -> CipherKey := HMAC(ClientKey, SharedKey)
-        var cipher_key = crypto.createHmac(hash, client_key)
+        // -> MasterKey := HMAC(ClientKey, SharedKey)
+        var master_key = crypto.createHmac(hash, client_key)
                                .update(shared_key)
                                .digest();
 
-        // -> ServerKey := HMAC(SaltedPassword, CipherKey)
+        // -> ServerKey := HMAC(SaltedPassword, MasterKey)
         var server_key = crypto.createHmac(hash, hashed_key)
-                               .update(cipher_key)
+                               .update(master_key)
                                .digest();
 
         // Remember all that we need to save
@@ -84,7 +84,7 @@ function Store(options) {
         hashed_key.fill(0);
         client_key.fill(0);
         stored_key.fill(0);
-        cipher_key.fill(0);
+        master_key.fill(0);
         server_key.fill(0);
 
         // All done

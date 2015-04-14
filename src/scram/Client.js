@@ -10,7 +10,7 @@ var Cipher = require('./Cipher');
 var xor = require('./tools').xor;
 var normalize = require('./tools').normalize;
 var flatten = require('./tools').flatten;
-var randomBase64 = require('./tools').randomBase64;
+var randomBuffer = require('./tools').randomBuffer;
 
 /* ========================================================================== */
 /* SCRAM CLIENT                                                               */
@@ -26,6 +26,7 @@ function Client(options) {
   var client_nonce = null;
   var derived_key = null;
   var store_key = null;
+  var hash = null;
 
   function request(subject, audience) {
     return Promise.resolve(flatten(arguments, [], true))
@@ -54,19 +55,6 @@ function Client(options) {
         if (! session.salt) throw new Error('No salt specified in session');
         if (! session.hash) throw new Error('No hash specified in session');
 
-        // Start with a new response
-        var response = normalize(session);
-        response.s
-
-
-        // Parameters for SCRAM
-        client_nonce = randomBuffer(nonce_length, secure);
-
-        var hash = KDF.knownHashes.validate(session.hash);
-        var shared_key = base64.decode(session.shared_key);
-        var server_nonce = base64.decode(session.server_nonce);
-        var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
-
         // Salt and spec for KDF
         var salt = base64.decode(session.salt);
         var kdf_spec = session.kdf_spec;
@@ -75,8 +63,20 @@ function Client(options) {
         return new KDF(kdf_spec).promiseKey(secret_key, salt)
           .then(function(hashed_key) {
 
-            // Wipe the secret key
+            // First of all, wipe the secret key
             secret_key.fill(0);
+
+            // Start with a new response
+            var response = normalize(session);
+
+            // Parameters for SCRAM from the session
+            hash = KDF.knownHashes.validate(session.hash);
+            var shared_key = base64.decode(session.shared_key);
+            var server_nonce = base64.decode(session.server_nonce);
+
+            // Compute and remember the client nonce, then auth message
+            client_nonce = randomBuffer(nonce_length, secure);
+            var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
             // Remember the derived key for verification
             derived_key = hashed_key.derived_key;
@@ -86,11 +86,10 @@ function Client(options) {
                                    .update(shared_key)
                                    .digest();
 
-            // Compute and remember the store key
+            // Compute and remember the store key // TODO find better name!!!
             store_key = crypto.createHmac(hash, client_key)
                                .update(shared_key)
                                .digest();
-
 
             // Compute our stored_key
             var stored_key = crypto.createHash(hash)
@@ -105,17 +104,22 @@ function Client(options) {
             // Compute and return the client proof
             var client_proof = xor(client_key, client_signature);
 
+            // Instrument our response
+            response.client_nonce = base64.encode(client_nonce);
+            response.server_nonce = base64.encode(server_nonce);
+            response.client_proof = base64.encode(client_proof);
+
             // Wipe our internal buffers
             client_key.fill(0);
             stored_key.fill(0);
+            shared_key.fill(0);
+            server_nonce.fill(0);
+            auth_message.fill(0);
+            client_proof.fill(0);
             client_signature.fill(0);
 
             // Return nonces and proof
-            return {
-              client_nonce: base64.encode(client_nonce),
-              server_nonce: base64.encode(server_nonce),
-              client_proof: base64.encode(client_proof)
-            }
+            return response;
           })
       })
   }
@@ -132,7 +136,6 @@ function Client(options) {
         if (! validation.client_nonce) throw new Error('No client nonce available in validation');
         if (! validation.server_nonce) throw new Error('No server nonce available in validation');
         if (! validation.server_proof) throw new Error('No server proof available in validation');
-        if (! validation.hash) throw new Error('No hash specified in hash');
 
         // Validate the client_nonce in the session, server_nonce can be switched
         if (Buffer.compare(client_nonce, base64.decode(validation.client_nonce)) != 0) {
@@ -140,7 +143,6 @@ function Client(options) {
         }
 
         // Local variables for computation
-        var hash = KDF.knownHashes.validate(validation.hash);
         var server_proof = base64.decode(validation.server_proof);
         var server_nonce = base64.decode(validation.server_nonce);
         var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
