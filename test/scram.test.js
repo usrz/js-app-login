@@ -176,7 +176,9 @@ describe.only('SCRAM', function() {
         expect(base64.decode(response.server_nonce)).to.eql(server_nonce);
         expect(response.client_proof).to.exist;
 
-        return updateNonce(server.validate(credentials, response));
+        return updateNonce(server.validate(credentials, response, function(secret) {
+          console.log("CALLBACK SHARED SECRET", secret);
+        }));
       })
 
       .then(function(validation) {

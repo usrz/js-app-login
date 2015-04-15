@@ -18,6 +18,7 @@ function Server(options) {
 
   var nonce_length = Number(options.nonce_length) || 32;
   var secure       = util.isBoolean(options.secure) ? options.secure : false;
+  var shared_secret = null; /// <----- THIS IS OUR SESSION KEY... STORE IT
 
   /* ------------------------------------------------------------------------ */
   /* Initiate a SCRAM session                                                 */
@@ -53,7 +54,7 @@ function Server(options) {
   /* ------------------------------------------------------------------------ */
   /* Validate a SCRAM response                                                */
   /* ------------------------------------------------------------------------ */
-  function validate(credentials, response) {
+  function validate(credentials, response, callback) {
 
     return Promise.resolve()
 
@@ -117,6 +118,25 @@ function Server(options) {
         validation.server_nonce = base64.encode(server_nonce);
         validation.server_proof = base64.encode(server_proof);
 
+        // Create a new ECDH
+        var ecdh = crypto.createECDH('prime256v1');
+        ecdh.generateKeys();
+
+        validation.ecdh_session = {
+          public_key: base64.encode(ecdh.getPublicKey()),
+          curven_name: 'p-256',
+        }
+
+        shared_secret = ecdh.computeSecret(base64.decode(response.ecdh_session.public_key));
+        console.log('SHARED SECRET SERVER', shared_secret.toString('hex'));
+
+        if (typeof(callback) === 'function') try {
+          callback(shared_secret);
+        } catch (error) {
+          throw error;
+        }
+
+
         // Wipe our buffers
         stored_key.fill(0);
         server_key.fill(0);
@@ -148,10 +168,7 @@ function Server(options) {
     var server_nonce = base64.decode(replacement.server_nonce);
     var auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
-    /// WRONG !!!! SIGNED KEY IS
-    var server_key = base64.decode(credentials.server_key);
-
-    var decrypted = new Cipher('A256GCM').decrypt(server_key, replacement, auth_message);
+    var decrypted = new Cipher('A256GCM').decrypt(shared_secret, replacement, auth_message);
 
     return decrypted;
 

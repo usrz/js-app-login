@@ -27,6 +27,7 @@ function Client(options) {
   var derived_key = null;
   var store_key = null;
   var hash = null;
+  var ecdh = null;
 
   function request(subject, audience) {
     return Promise.resolve(flatten(arguments, [], true))
@@ -104,10 +105,19 @@ function Client(options) {
             // Compute and return the client proof
             var client_proof = xor(client_key, client_signature);
 
+            // Create a new ECDH
+            ecdh = crypto.createECDH('prime256v1');
+            ecdh.generateKeys();
+
             // Instrument our response
             response.client_nonce = base64.encode(client_nonce);
             response.server_nonce = base64.encode(server_nonce);
             response.client_proof = base64.encode(client_proof);
+
+            response.ecdh_session = {
+              public_key: base64.encode(ecdh.getPublicKey()),
+              curven_name: 'p-256',
+            }
 
             // Wipe our internal buffers
             client_key.fill(0);
@@ -161,6 +171,9 @@ function Client(options) {
           throw new Error('Verification failure');
         }
 
+        var shared_secret = ecdh.computeSecret(base64.decode(validation.ecdh_session.public_key));
+        console.log('SHARED SECRET CLIENT', shared_secret.toString('hex'));
+
         // If no password to update, bail!
         if (! secret) return true;
 
@@ -169,7 +182,7 @@ function Client(options) {
         auth_message = Buffer.concat([ client_nonce, server_nonce ]);
 
         // Compute the result
-        var result = new Cipher('A256GCM').encrypt(server_key, secret, auth_message);
+        var result = new Cipher('A256GCM').encrypt(shared_secret, secret, auth_message);
 
         result.server_nonce = base64.encode(server_nonce);
         result.client_nonce = base64.encode(client_nonce);
