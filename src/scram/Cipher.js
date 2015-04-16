@@ -1,20 +1,58 @@
 'use strict';
 
+/* ========================================================================== *
+ * INTERACTION BETWEEN ECDH CURVES AND AES ALGORITHMS                         *
+ * ========================================================================== *
+ *                                                                            *
+ * We derive our encryption secret passing around a couple of EC public keys  *
+ * (Diffie-Hellman FTW), so here is a quick reminder of what curves actually  *
+ * do work with which encryption algorithm.                                   *
+ *                                                                            *
+ * Note that we use AES (CBC a-la JWE or GCM) only, with three key sizes.     *
+ *                                                                            *
+ * +---------------+----------------+-------+-------+-------+-------+-------+ *
+ * | Algorighm     | Key Size, Bits | P-192 | P-224 | P-256 | P-384 | P-521 | *
+ * +---------------+----------------+-------+-------+-------+-------+-------+ *
+ * | A128GCM       |       128      | Trunc | Trunc | Trunc | Trunc | Trunc | *
+ * | A192GCM       |       192      | Exact | Trunc | Trunc | Trunc | Trunc | *
+ * | A256GCM       |       256      |       |       | Exact | Trunc | Trunc | *
+ * | A128CBC-HS256 |       256      |       |       | Exact | Trunc | Trunc | *
+ * | A192CBC-HS384 |       384      |       |       |       | Exact | Trunc | *
+ * | A256CBC-HS512 |       512      |       |       |       |       | Trunc | *
+ * +---------------+----------------+-------+-------+-------+-------+-------+ *
+ *                                                                            *
+ * ========================================================================== */
+
 var base64 = require('../base64');
 var crypto = require('crypto');
 var util = require('util');
+
+/* ========================================================================== */
+
+function key(k, len) {
+  if (! util.isBuffer(k)) throw new Error('Key unavailable or not a buffer');
+  if (k.length == len) return k; // unchanged if precise
+  if (k.length > len) return k.slice(0, len);
+  throw new TypeError("Key must be at least " + len + " bytes");
+}
+
+function vector(iv, len, create) {
+  if (util.isBuffer(iv)) {
+    if (iv.length == len) return iv;
+  } else if (create) {
+    return crypto.randomBytes(len);
+  }
+
+  throw new TypeError('Initialization vectory must be precisely ' + len + ' bytes');
+}
 
 /* ========================================================================== */
 /* WRAPPER AROUND AES CBC ADDING AUTHENTICATION                               */
 /* ========================================================================== */
 
 function enc_cbc(alg, sha, len, k, p, a, iv) {
-  if (k.length != len) throw new TypeError("Key must be precisely " + len + " bytes");
-  if (iv && iv.length != 16) {
-    throw new TypeError('Initialization vectory must be precisely 16 bytes');
-  } else if (!iv) {
-    iv = crypto.randomBytes(16);
-  }
+  k = key(k, len);
+  iv = vector(iv, 16, true);
 
   var mac_key = k.slice(0, k.length / 2);
   var enc_key = k.slice(k.length / 2);;
@@ -45,10 +83,8 @@ function enc_cbc(alg, sha, len, k, p, a, iv) {
 }
 
 function dec_cbc(alg, sha, len, k, e, t, iv, a) {
-  if (k.length != len) throw new TypeError("Key must be precisely " + len + " bytes");
-  if ((! iv) || (iv.length != 16)) {
-    throw new TypeError('Initialization vectory must be precisely 16 bytes');
-  }
+  k = key(k, len);
+  iv = vector(iv, 16, false);
 
   var mac_key = k.slice(0, k.length / 2);
   var enc_key = k.slice(k.length / 2);;
@@ -80,12 +116,8 @@ function dec_cbc(alg, sha, len, k, e, t, iv, a) {
 /* ========================================================================== */
 
 function enc_gcm(alg, sha, len, k, p, a, iv) {
-  if (k.length != len) throw new TypeError("Key must be precisely " + len + " bytes");
-  if (iv && iv.length != 12) {
-    throw new TypeError('Initialization vectory must be precisely 12 bytes');
-  } else if (!iv) {
-    iv = crypto.randomBytes(12);
-  }
+  k = key(k, len);
+  iv = vector(iv, 12, true);
 
   var cipher = crypto.createCipheriv(alg, k, iv);
   if (a != null) cipher.setAAD(a);
@@ -104,10 +136,8 @@ function enc_gcm(alg, sha, len, k, p, a, iv) {
 }
 
 function dec_gcm(alg, sha, len, k, e, t, iv, a) {
-  if (k.length != len) throw new TypeError("Key must be precisely " + len + " bytes");
-  if ((! iv) || (iv.length != 12)) {
-    throw new TypeError('Initialization vectory must be precisely 12 bytes');
-  }
+  k = key(k, len);
+  iv = vector(iv, 12, false);
 
   var cipher = crypto.createDecipheriv(alg, k, iv);
   if (a != null) cipher.setAAD(a);
@@ -121,6 +151,9 @@ function dec_gcm(alg, sha, len, k, e, t, iv, a) {
 
 }
 
+/* ========================================================================== */
+/* CIPHER WRAPPER                                                             */
+/* ========================================================================== */
 
 function Cipher(algorithm) {
   if (!(this instanceof Cipher)) return new Cipher(algorithm);
