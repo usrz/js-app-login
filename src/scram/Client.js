@@ -27,7 +27,6 @@ function Client(options) {
   var derived_key = null;
   var store_key = null;
   var hash = null;
-  var ecdh = null;
 
   function request(subject, audience) {
     return Promise.resolve(flatten(arguments, [], true))
@@ -105,19 +104,10 @@ function Client(options) {
             // Compute and return the client proof
             var client_proof = xor(client_key, client_signature);
 
-            // Create a new ECDH
-            ecdh = crypto.createECDH('prime256v1');
-            ecdh.generateKeys();
-
             // Instrument our response
             response.client_nonce = base64.encode(client_nonce);
             response.server_nonce = base64.encode(server_nonce);
             response.client_proof = base64.encode(client_proof);
-
-            response.ecdh_session = {
-              public_key: base64.encode(ecdh.getPublicKey()),
-              curven_name: 'p-256',
-            }
 
             // Wipe our internal buffers
             client_key.fill(0);
@@ -134,7 +124,7 @@ function Client(options) {
       })
   }
 
-  function verifyAndReplace(validation, secret) {
+  function verify(validation) {
 
     return Promise.resolve()
       .then(function() {
@@ -169,43 +159,16 @@ function Client(options) {
                                   .digest();
         if (Buffer.compare(derived_proof, server_proof) != 0) {
           throw new Error('Verification failure');
+        } else {
+          return true;
         }
-
-        var shared_secret = ecdh.computeSecret(base64.decode(validation.ecdh_session.public_key));
-        console.log('SHARED SECRET CLIENT', shared_secret.toString('hex'));
-
-        // If no password to update, bail!
-        if (! secret) return true;
-
-        // Replace the client proof and authentication message
-        client_nonce = randomBuffer(nonce_length, secure);
-        auth_message = Buffer.concat([ client_nonce, server_nonce ]);
-
-        // Compute the result
-        var result = new Cipher('A256GCM').encrypt(shared_secret, secret, auth_message);
-
-        result.server_nonce = base64.encode(server_nonce);
-        result.client_nonce = base64.encode(client_nonce);
-
-        // TODO wipe buffers
-
-        return result;
       });
-  }
-
-  function replace(validation, secret) {
-    return verifyAndReplace(validation, secret);
-  }
-
-  function verify(validation) {
-    return verifyAndReplace(validation);
   }
 
   // Immutables
   Object.defineProperties(this, {
     'request': { configurable: false, enumerable: true, value: request },
     'respond': { configurable: false, enumerable: true, value: respond },
-    'replace': { configurable: false, enumerable: true, value: replace },
     'verify':  { configurable: false, enumerable: true, value: verify  },
   });
 }

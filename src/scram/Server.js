@@ -54,7 +54,7 @@ function Server(options) {
   /* ------------------------------------------------------------------------ */
   /* Validate a SCRAM response                                                */
   /* ------------------------------------------------------------------------ */
-  function validate(credentials, response, callback) {
+  function validate(credentials, response) {
 
     return Promise.resolve()
 
@@ -117,25 +117,6 @@ function Server(options) {
         validation.client_nonce = base64.encode(client_nonce);
         validation.server_nonce = base64.encode(server_nonce);
         validation.server_proof = base64.encode(server_proof);
-
-        // Create a new ECDH
-        var ecdh = crypto.createECDH('prime256v1');
-        ecdh.generateKeys();
-
-        validation.ecdh_session = {
-          public_key: base64.encode(ecdh.getPublicKey()),
-          curven_name: 'p-256',
-        }
-
-        shared_secret = ecdh.computeSecret(base64.decode(response.ecdh_session.public_key));
-        console.log('SHARED SECRET SERVER', shared_secret.toString('hex'));
-
-        if (typeof(callback) === 'function') try {
-          callback(shared_secret);
-        } catch (error) {
-          throw error;
-        }
-
 
         // Wipe our buffers
         stored_key.fill(0);

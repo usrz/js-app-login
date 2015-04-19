@@ -6,7 +6,7 @@ var scram = require('../src/scram');
 var KDF = require('key-derivation');
 var crypto = require('crypto');
 
-describe.only('SCRAM', function() {
+describe('SCRAM', function() {
 
   var password = crypto.randomBytes(32);
   var credentials;
@@ -18,6 +18,7 @@ describe.only('SCRAM', function() {
     var store = new scram.Store();
 
     store.generate(secret).then(function(storable) {
+      //console.log("CREDENTIALS", storable, '\n');
 
       // Check the KDF
       expect(storable.kdf_spec).to.eql(KDF.defaultSpec);
@@ -32,7 +33,6 @@ describe.only('SCRAM', function() {
       expect(Buffer.compare(secret, password)).not.to.equal(0);
 
       // Remember our credentials
-      console.log("CREDENTIALS", storable, '\n');
       credentials = storable;
       done();
     })
@@ -106,6 +106,7 @@ describe.only('SCRAM', function() {
 
     // Server nonce, verifier for server and updater to check it changes
     var server_nonce = new Buffer(0);
+    var client_nonce = new Buffer(0);
     var verifyNonce = function(promise) {
       return promise.then(function(message) {
         if (! message.server_nonce) throw new Error("No server nonce in message");
@@ -131,16 +132,25 @@ describe.only('SCRAM', function() {
       });
     }
 
+    function serverNonce(promise) {
+      return promise.then(function(message) {
+
+      });
+    }
+
+
+
+
     // Server, client and (cloned) password
     var server = new scram.Server();
     var client = new scram.Client();
     var secret = new Buffer(password);
 
     // Start with a client simple request
-    client.request('test@example.org', 'audience-1')
+    client.request('test@example.org', 'audience-1', 'audience-2')
 
       .then(function(request) {
-        console.log("REQUEST", request, '\n');
+        console.log("CLIENT REQUEST", request, '\n');
 
         expect(request).to.eql({
           subject: 'test@example.org',
@@ -152,7 +162,7 @@ describe.only('SCRAM', function() {
       })
 
       .then(function(session) {
-        console.log("SESSION", session, '\n');
+        console.log("SERVER SESSION", session, '\n');
 
         // Session must be the same as credentials, minus signed key, plus nonces
         expect(session.server_key).not.to.exist; // <--- NEVER TRANSFER
@@ -166,7 +176,7 @@ describe.only('SCRAM', function() {
       })
 
       .then(function(response) {
-        console.log("RESPONSE", response, '\n');
+        console.log("CLIENT RESPONSE", response, '\n');
 
         // Make sure that "client.respond()" wiped the password
         expect(Buffer.compare(secret, password)).not.to.equal(0);
@@ -176,28 +186,24 @@ describe.only('SCRAM', function() {
         expect(base64.decode(response.server_nonce)).to.eql(server_nonce);
         expect(response.client_proof).to.exist;
 
-        return updateNonce(server.validate(credentials, response, function(secret) {
-          console.log("CALLBACK SHARED SECRET", secret);
-        }));
+        return updateNonce(server.validate(credentials, response));
       })
 
       .then(function(validation) {
-        console.log("VALIDATION", validation, '\n');
+        console.log("SERVER VALIDATION", validation, '\n');
 
         // TODO -> expect(base64.decode(validation.client_nonce)).to.eql(client_nonce);
         expect(base64.decode(validation.server_nonce)).to.eql(server_nonce);
         expect(validation.server_proof).to.exist;
 
-        return verifyNonce(client.replace(validation, new Buffer('newpassword')));
+        return client.verify(validation);
 
       })
 
       .then(function(verification) {
-        console.log("VERIFICATION", verification, '\n');
-        var updated = server.update(credentials, verification);
-        console.log('UPDATED', updated.toString());
+        console.log("CLIENT VERIFICATION", verification, '\n');
 
-        expect(updated.toString()).to.equal('newpassword');
+        expect(verification).to.equal(true);
 
         done();
       })
@@ -231,6 +237,7 @@ describe.only('SCRAM', function() {
 
       .then(function(validation) {
         done(new Error("Unexpected validation: " + JSON.stringify(validation, null, 2)));
+        return client.verify(validation);
 
       }, function(error) {
         expect(error.message).to.equal('Authentication failure');
