@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Keys</title>
+    <script>
+      var curves = {
+        // prime192v1
+        // "P-192": "MG8CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQEEVTBTAgEBBBi1m90Ho2Gn3TsV4pxK"
+        //        + "D8NhStAtfhKZLs+hNAMyAAQ2FJz8Lh3L9FTrLHhma53OkoDyns323X/D0UrRWvYz"
+        //        + "7Dc6wrroL8FmLfeTu70PHlU=",
+        // secp224r1
+        // "P-224": "MHgCAQAwEAYHKoZIzj0CAQYFK4EEACEEYTBfAgEBBBxBiA2kejFNLBFN0lskFuMU"
+        //        + "R9/zpx0fHsy0HaRmoTwDOgAESdadGLlHfbK1RFCsczCvhr8MFCq7K64OtP15hT+E"
+        //        + "2fvs3oPUSBd4l1uK/Dp6zWhNr6J6coiKGuA=",
+        // prime256v1
+        "P-256": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgV1wBLVs0eaY6PMof"
+               + "cSYvNo/azDFoFn7qnl/Mq+1DjGKhRANCAAQwiSdoMegP41MhC1I5A8OdMn3uS+u8"
+               + "jPjjvk5hxQAfF/imdwCd0h78HLh0c5OnmUI4rdLSHUWlr3bLPuRgdUbE",
+        // secp384r1
+        "P-384": "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDDzjWOdpzLGk4AyKgHn"
+               + "xWa6qKP3hclfYvTjp4VAQi70xEgx+nkrgA4xuXdBTbE0J6qhZANiAARScDFfpmVv"
+               + "Darrw65dF/p+yX1pmv5XHbhC9i3BFoiYOf8tT3mgRiMsSNuoscDensj8Nmffl3HP"
+               + "mdEsVHI0on1wPTsTNrSeeE0r4xkdXGJDUCb4iYqzV4qalH+QwuNP5rs=",
+        // secp521r1
+        "P-521": "MIHtAgEAMBAGByqGSM49AgEGBSuBBAAjBIHVMIHSAgEBBEGlTwUKv8UZIaWdprGU"
+               + "0Her71d/2NIzdU40q/QUrKa7OaD/GWXVUgnbLDyU4yWSPZ0Ts4vpGSDYy+G9+QUn"
+               + "d/1MNqGBiQOBhgAEAdiN//AdV5jTjS2YBnKg3a6G/Rlz0ls+/KwZKLBtF5XAEvDe"
+               + "kpRdBm5ZdKLVphYqAuaEgalkiYL6Cv3nlVzXpcZgARYNeSRLU6g68NlbQy06YUM3"
+               + "w2AGqsjhXdZwTOcV681HOEOwyoofju9VS1/EUyaSvHqnRvFPTG5ySJoeFd4uKwwA"
+      }
+      var keys = {};
+      for (var i in curves) (function(i) {
+        console.log("Parsing PKCS8 from Base64 for " + i);
+        var s = atob(curves[i]);
+        var b = new Uint8Array(s.length);
+        for (var j = 0; j < s.length; j++) {
+          b[j] = s.charCodeAt(j);
+        }
+
+        console.log("Importing PKCS8 for " + i);
+        crypto.subtle.importKey("pkcs8", b, {name: "ecdsa", namedCurve: i}, true, ["sign"])
+
+        .then(function(cryptoKey) {
+          console.log("Imported PKCS8 for " + i);
+          return crypto.subtle.exportKey('jwk', cryptoKey);
+        })
+
+        .then(function(jwk) {
+          console.log("Exported JWK for " + i, JSON.stringify(jwk, null, 2));
+          keys[i] = jwk;
+        })
+
+        .catch(function(error) {
+          console.error('Error processing ' + i, error);
+          throw error;
+        })
+
+      })(i);
+    </script>
+  </head>
+  <body>
+    <p>Look at the console, inspect <code>"keys"</code></p>
+  </body>
+</html>

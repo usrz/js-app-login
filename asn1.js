@@ -39,6 +39,7 @@ var buffer = PrivateKey.encode({
 }, 'der');
 console.log(buffer.toString('base64'));
 
+console.log(PrivateKey.decode(buffer, 'der'));
 
 var buffer2 = PublicKey.encode({
   AlgorithmIdentifier: {
