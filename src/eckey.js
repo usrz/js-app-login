@@ -118,11 +118,7 @@ function parsePkcs8(buffer) {
   var bytes = lengths[curve];
 
   var privateKey = privateKeyWrapper.privateKey;
-  if (privateKey.length < bytes) {
-    var remaining = bytes - privateKey.length;
-    privateKey = Buffer.concat([new Buffer(remaining).fill(0), privateKey]);
-
-  } else if (privateKey.length > bytes) {
+  if (privateKey.length > bytes) {
     throw new TypeError('Invalid private key size: expected ' + bytes + ' gotten ' + privateKey.length);
   }
 
@@ -137,11 +133,7 @@ function parseRfc5915(buffer) {
   var bytes = lengths[key.parameters];
 
   var privateKey = key.privateKey;
-  if (privateKey.length < bytes) {
-    var remaining = bytes - privateKey.length;
-    privateKey = Buffer.concat([new Buffer(remaining).fill(0), privateKey]);
-
-  } else if (privateKey.length > bytes) {
+  if (privateKey.length > bytes) {
     throw new TypeError('Invalid private key size: expected ' + bytes + ' gotten ' + privateKey.length);
   }
 
@@ -191,6 +183,8 @@ function parsePem(pem) {
  * ========================================================================== */
 
 function ECKey(key) {
+  if (!(this instanceof ECKey)) return new ECKey(key);
+
   var curve, d, x, y;
 
   if (util.isString(key)) {
@@ -293,6 +287,20 @@ function ECKey(key) {
     get: function() {
       return new Buffer(d)
     }
+  });
+}
+
+ECKey.create = function(curve) {
+  if (curves[curve]) curve = curves[curve];
+  if (!jwkCurves[curve]) throw new TypeError("Invalid/unknown curve \"" + curve + "\"");
+
+  var ecdh = crypto.createECDH(curve);
+
+  ecdh.generateKeys();
+  return new ECKey({
+    privateKey: ecdh.getPrivateKey(),
+    publicKey: ecdh.getPublicKey(),
+    curve: curve
   });
 }
 
@@ -420,7 +428,14 @@ ECKey.prototype.toJSON = function() {
   };
 
   var d = this.d;
-  if (d) jwk.d = base64.encode(d);
+  if (d) {
+    var bytes = lengths[this.curve];
+    if (d.length < bytes) {
+      var remaining = bytes - d.length;
+      d = Buffer.concat([new Buffer(remaining).fill(0), d]);
+    }
+    jwk.d = base64.encode(d);
+  }
 
   return jwk;
 }

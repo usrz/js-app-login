@@ -2,7 +2,7 @@ var ECKey = require('../src/eckey');
 var expect = require('chai').expect;
 var fs = require('fs');
 
-describe('EC Key', function() {
+describe.only('EC Key', function() {
 
   var re = /-+BEGIN .* KEY-+([\s\S]+)-+END .* KEY-+/m;
   var names = [ 'prime256v1', 'secp384r1', 'secp521r1' ];
@@ -120,4 +120,34 @@ describe('EC Key', function() {
 
     });
   })(names[i]);
+
+  describe('Others', function() {
+
+    it('should create a key with an OpenSSL curve name', function() {
+      var key = ECKey.create('secp521r1');
+      expect(key.curve).to.equal('secp521r1');
+      expect(key.d).to.be.instanceof(Buffer);
+      expect(key.x).to.be.instanceof(Buffer);
+      expect(key.y).to.be.instanceof(Buffer);
+      expect(key.d.length).to.be.lt(67); // might be 65, 64, ...
+      expect(key.x.length).to.be.equal(66);
+      expect(key.y.length).to.be.equal(66);
+    });
+
+    it('should create a key with a JWK/NIST curve name', function() {
+      var key = ECKey.create('P-256');
+      expect(key.curve).to.equal('prime256v1');
+      expect(key.d).to.be.instanceof(Buffer);
+      expect(key.x).to.be.instanceof(Buffer);
+      expect(key.y).to.be.instanceof(Buffer);
+      expect(key.d.length).to.be.lt(33);
+      expect(key.x.length).to.be.equal(32);
+      expect(key.y.length).to.be.equal(32);
+    });
+
+    it('should not create a key with an unknown curve name', function() {
+      expect(function() { ECKey.create('gonzo') }).to.throw('Invalid/unknown curve "gonzo"');
+    });
+
+  });
 });
