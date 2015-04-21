@@ -1,7 +1,7 @@
 var crypto = require('crypto');
 var asn = require('asn1.js');
 var util = require('util');
-var base64 = require('./src/base64');
+var base64 = require('./base64');
 
 /* ========================================================================== *
  * From RFC-4492 (Appendix A) Equivalent Curves (Informative)                 *
@@ -190,7 +190,7 @@ function parsePem(pem) {
  * CLASS DEFINITION                                                           *
  * ========================================================================== */
 
-function ECDH(key) {
+function ECKey(key) {
   var curve, d, x, y;
 
   if (util.isString(key)) {
@@ -300,16 +300,16 @@ function ECDH(key) {
  * CONVERSION                                                                 *
  * ========================================================================== */
 
-ECDH.prototype.toPublicECKey = function() {
+ECKey.prototype.toPublicECKey = function() {
   if (! this.isPrivateECKey) return this;
-  return new ECDH({
+  return new ECKey({
     curve: this.curve,
     x: this.x,
     y: this.y
   });
 }
 
-ECDH.prototype.toBuffer = function(format) {
+ECKey.prototype.toBuffer = function(format) {
   if (this.isPrivateECKey) {
     // Strip leading zeroes from private key
     var d = this.d;
@@ -369,7 +369,7 @@ ECDH.prototype.toBuffer = function(format) {
   }
 }
 
-ECDH.prototype.toString = function(format) {
+ECKey.prototype.toString = function(format) {
   if (this.isPrivateECKey) {
     if (! format) format = "pem";
     if (format == "pem") { // pkcs8, wrapped
@@ -411,7 +411,7 @@ ECDH.prototype.toString = function(format) {
   }
 }
 
-ECDH.prototype.toJSON = function() {
+ECKey.prototype.toJSON = function() {
   var jwk = {
     kty: "EC",
     crv: jwkCurves[this.curve],
@@ -430,5 +430,5 @@ ECDH.prototype.toJSON = function() {
  * EXPORTS                                                                    *
  * ========================================================================== */
 
-exports = module.exports = ECDH;
+exports = module.exports = ECKey;
 

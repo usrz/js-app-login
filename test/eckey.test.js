@@ -1,4 +1,4 @@
-var ECDH = require('../ecdh');
+var ECKey = require('../src/eckey');
 var expect = require('chai').expect;
 var fs = require('fs');
 
@@ -90,31 +90,31 @@ describe.only('EC Key', function() {
 
       it('should parse a OpenSSL PEM private key', function() {
         var curve = curves[name];
-        var key = new ECDH(curve.priv);
+        var key = new ECKey(curve.priv);
         testPrivateKey(curve, key, name);
       });
 
       it('should parse a PKCS8 private key', function() {
         var curve = curves[name];
-        var key = new ECDH(curve.pkcs8);
+        var key = new ECKey(curve.pkcs8);
         testPrivateKey(curve, key, name);
       });
 
       it('should parse a JWK private key', function() {
         var curve = curves[name];
-        var key = new ECDH(curve.privJwk);
+        var key = new ECKey(curve.privJwk);
         testPrivateKey(curve, key, name);
       });
 
       it('should parse a SPKI public key', function() {
         var curve = curves[name];
-        var key = new ECDH(curve.pub);
+        var key = new ECKey(curve.pub);
         testPublicKey(curve, key, name);
       });
 
       it('should parse a JWK public key', function() {
         var curve = curves[name];
-        var key = new ECDH(curve.pubJwk);
+        var key = new ECKey(curve.pubJwk);
         testPublicKey(curve, key, name);
       });
 
