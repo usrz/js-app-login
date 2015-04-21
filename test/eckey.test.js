@@ -172,6 +172,7 @@ describe.only('EC Key', function() {
       var secret2 = ecdh2.computeSecret(key1);
       // HEX to display errors in a sane way
       expect(secret1.toString('hex')).to.eql(secret2.toString('hex'));
+      expect(secret1.length).to.equal(66);
     });
 
   });
