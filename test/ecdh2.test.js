@@ -10,10 +10,13 @@ describe.only('ECDH 2', function() {
   before(function() {
     for (var i = 0; i < names.length; i ++) (function(name) {
       curves[name] = {
+        // PEM FILES
         pkcs8: fs.readFileSync('./curves/' + name + '.priv-pkcs8.pem', 'utf8'),
-        priv: fs.readFileSync('./curves/' + name + '.priv.pem', 'utf8'),
+        priv: fs.readFileSync('./curves/' + name + '.priv-openssl.pem', 'utf8'),
         pub: fs.readFileSync('./curves/' + name + '.pub.pem', 'utf8'),
-        jwk: JSON.parse(fs.readFileSync('./curves/' + name + '.priv.json', 'utf8')),
+        // JWK FILES
+        privJwk: JSON.parse(fs.readFileSync('./curves/' + name + '.priv.json', 'utf8')),
+        pubJwk: JSON.parse(fs.readFileSync('./curves/' + name + '.pub.json', 'utf8')),
       }
     })(names[i]);
   });
@@ -25,27 +28,22 @@ describe.only('ECDH 2', function() {
       it('should parse an OpenSSL PEM private key', function() {
         var curve = curves[name];
         var key = new ECDH(curve.priv);
-        expect(key.c, "name").to.equal(name);
-        expect(key.x, "x").to.equal(curve.jwk.x);
-        expect(key.y, "y").to.equal(curve.jwk.y);
-        expect(key.d, "d").to.equal(curve.jwk.d);
+        expect(key.curve, "curve name").to.equal(name);
+        expect(key.toJSON(), "jwk").to.eql(curve.privJwk);
       });
 
-      it.skip('should parse a PKCS8 private key', function() {
+      it('should parse a PKCS8 private key', function() {
         var curve = curves[name];
         var key = new ECDH(curve.pkcs8);
-        expect(key.c, "name").to.equal(name);
-        expect(key.x, "x").to.equal(curve.jwk.x);
-        expect(key.y, "y").to.equal(curve.jwk.y);
-        expect(key.d, "d").to.equal(curve.jwk.d);
+        expect(key.curve, "curve name").to.equal(name);
+        expect(key.toJSON(), "jwk").to.eql(curve.privJwk);
       });
 
       it('should parse a SPKI public key', function() {
         var curve = curves[name];
         var key = new ECDH(curve.pub);
-        expect(key.c, "name").to.equal(name);
-        expect(key.x, "x").to.equal(curve.jwk.x);
-        expect(key.y, "y").to.equal(curve.jwk.y);
+        expect(key.curve, "curve name").to.equal(name);
+        expect(key.toJSON(), "jwk").to.eql(curve.pubJwk);
       });
 
     });

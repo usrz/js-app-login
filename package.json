@@ -21,6 +21,7 @@
     "request": "^2.55.0"
   },
   "dependencies": {
+    "asn1.js": "^1.0.4",
     "base64-url": "^1.2.1",
     "body-parser": "^1.12.2",
     "express": "^4.12.3",

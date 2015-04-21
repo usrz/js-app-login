@@ -26,6 +26,24 @@ var lengths = {
    secp521r1 : Math.ceil(521 / 8),
 }
 
+/* JWK curve names */
+var jwkCurves = {
+  prime256v1 : 'P-256',
+   secp384r1 : 'P-384',
+   secp521r1 : 'P-521',
+}
+
+/* OpenSSL curve names */
+var curves = {
+ 'P-256' : 'prime256v1',
+ 'P-384' : 'secp384r1',
+ 'P-521' : 'secp521r1',
+}
+
+/* ========================================================================== *
+ * ASN.1                                                                      *
+ * ========================================================================== */
+
 var ASN1ECOpenSSLKey = asn.define('OpenSSLKey', function() {
   this.seq().obj(
     this.key('version').int(),
@@ -39,7 +57,25 @@ var ASN1ECOpenSSLKey = asn.define('OpenSSLKey', function() {
   );
 });
 
-var ASN1ECPublicKey = asn.define('PublicKey', function() {
+var ASN1ECPkcs8Key = asn.define('Pkcs8Key', function() {
+  this.seq().obj(
+    this.key('version').int(),
+    this.key('algorithmIdentifier').seq().obj(
+      this.key('publicKeyType').objid({
+        '1 2 840 10045 2 1': 'EC'
+      }),
+      this.key('parameters').objid({
+        '1 2 840 10045 3 1 7' : 'prime256v1',
+        '1 3 132 0 34'        : 'secp384r1',
+        '1 3 132 0 35'        : 'secp521r1',
+      })
+    ),
+    this.key('privateKey').octstr()
+  );
+});
+
+
+var ASN1ECSpkiKey = asn.define('SpkiKey', function() {
   this.seq().obj(
     this.key('algorithmIdentifier').seq().obj(
       this.key('publicKeyType').objid({
@@ -54,6 +90,10 @@ var ASN1ECPublicKey = asn.define('PublicKey', function() {
     this.key('publicKey').bitstr()
   );
 });
+
+/* ========================================================================== *
+ * ASN.1 PARSING                                                              *
+ * ========================================================================== */
 
 /* Parse a public key buffer, split X and Y */
 function parsePublicKeyBuffer(curve, buffer) {
@@ -72,7 +112,23 @@ function parsePublicKeyBuffer(curve, buffer) {
 
 /* Parse PKCS8 from RFC 5208 */
 function parsePkcs8(buffer) {
-  throw new Error('Not yet');
+  var key = ASN1ECPkcs8Key.decode(buffer, 'der');
+  var privateKeyWrapper = ASN1ECOpenSSLKey.decode(key.privateKey, 'der');
+  var curve = key.algorithmIdentifier.parameters;
+  var bytes = lengths[curve];
+
+  var privateKey = privateKeyWrapper.privateKey;
+  if (privateKey.length < bytes) {
+    var remaining = bytes - privateKey.length;
+    privateKey = Buffer.concat([new Buffer(remaining).fill(0), privateKey]);
+
+  } else if (privateKey.length > bytes) {
+    throw new TypeError('Invalid private key size: expected ' + bytes + ' gotten ' + privateKey.length);
+  }
+
+  var components = parsePublicKeyBuffer(curve, privateKeyWrapper.publicKey.data);
+  components.d = privateKey;
+  return components;
 }
 
 function parseOpenSSL(buffer) {
@@ -95,12 +151,12 @@ function parseOpenSSL(buffer) {
 
 /* Parse SPKI from RFC 5280 */
 function parseSpki(buffer) {
-  var key = ASN1ECPublicKey.decode(buffer, 'der');
+  var key = ASN1ECSpkiKey.decode(buffer, 'der');
   return parsePublicKeyBuffer(key.algorithmIdentifier.parameters, key.publicKey.data);
 }
 
 /* ========================================================================== *
- * PEM HANDLING                                                               *
+ * PEM PARSING                                                                *
  * ========================================================================== */
 
 var pemOpenSSLRE = /-+BEGIN EC PRIVATE KEY-+([\s\S]+)-+END EC PRIVATE KEY-+/m;
@@ -130,27 +186,79 @@ function parsePem(pem) {
 }
 
 /* ========================================================================== *
- * EXPORTS                                                                    *
+ * CLASS DEFINITION                                                           *
  * ========================================================================== */
 
 function ECDH(key) {
+  var curve, privateKey, publicKey, x, y;
+
   if (util.isString(key)) {
     var k = parsePem(key);
-    this.c = k.c;
-    this.x = base64.encode(k.x);
-    this.y = base64.encode(k.y);
-    this.d = k.d ? base64.encode(k.d) : null;
+    curve = k.c;
+    x = k.x;
+    y = k.y;
+    privateKey = k.d;
+    publicKey = Buffer.concat([new Buffer([0x04]), x, y]);
+  } else {
+    throw new TypeError('Unrecognized format for EC key');
   }
+
+  Object.defineProperties(this, {
+    'curve': {
+      enumerable: true,
+      configurable: false,
+      value: curve
+    },
+    'publicKey': {
+      enumerable: true,
+      configurable: false, get:
+      function() {
+        return new Buffer(publicKey)
+      }
+    },
+    'x': {
+      enumerable: true,
+      configurable: false,
+      get: function() {
+        return new Buffer(x)
+      }
+    },
+    'y': {
+      enumerable: true,
+      configurable: false,
+      get: function() {
+        return new Buffer(y)
+      }
+    },
+  });
+
+  if (privateKey) Object.defineProperty(this, 'privateKey', {
+    enumerable: true,
+    configurable: false,
+    get: function() {
+      return new Buffer(privateKey)
+    }
+  });
 }
+
+ECDH.prototype.toJSON = function() {
+  var jwk = {
+    kty: "EC",
+    crv: jwkCurves[this.curve],
+    x: base64.encode(this.x),
+    y: base64.encode(this.y),
+  };
+
+  var privateKey = this.privateKey;
+  if (privateKey) jwk.d = base64.encode(privateKey);
+
+  return jwk;
+}
+
+
+/* ========================================================================== *
+ * EXPORTS                                                                    *
+ * ========================================================================== */
 
 exports = module.exports = ECDH;
 
-// private
-// --> PEM (BASE64 of PKCS8)
-// --> PKCS8 (der)
-// --> JWK (kty="EC", crv, d, x, y)
-// public
-// --> PEM (BASE64 of SPKI)
-// --> SPKI (der)
-// --> JWK (kty="EC", crv, x, y)
-//
