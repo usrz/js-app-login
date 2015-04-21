@@ -149,5 +149,26 @@ describe.only('EC Key', function() {
       expect(function() { ECKey.create('gonzo') }).to.throw('Invalid/unknown curve "gonzo"');
     });
 
+    it('should create a couple of ECDH and negotiate a secret from existing keys', function() {
+      var key1 = new ECKey(fs.readFileSync('./test/eckey/ecdh1.pem', 'utf8'));
+      var key2 = new ECKey(fs.readFileSync('./test/eckey/ecdh1.pem', 'utf8'));
+      var ecdh1 = key1.createECDH();
+      var ecdh2 = key2.createECDH();
+      var secret1 = ecdh1.computeSecret(key2.publicCodePoint);
+      var secret2 = ecdh2.computeSecret(key1.publicCodePoint);
+      expect(secret1.toString('hex')).to.equal('620dee6f38472543ff87459fa37bc8cf9c04337aff5652327fe0ddfac88c715a');
+      expect(secret2.toString('hex')).to.equal('620dee6f38472543ff87459fa37bc8cf9c04337aff5652327fe0ddfac88c715a');
+    });
+
+    it('should create a couple of ECDH and negotiate a secret from random keys', function() {
+      var key1 = new ECKey.create('P-521');
+      var key2 = new ECKey.create('P-521');
+      var ecdh1 = key1.createECDH();
+      var ecdh2 = key2.createECDH();
+      var secret1 = ecdh1.computeSecret(key2.publicCodePoint);
+      var secret2 = ecdh2.computeSecret(key1.publicCodePoint);
+      expect(secret1.toString('hex')).to.eql(secret2.toString('hex'));
+    });
+
   });
 });

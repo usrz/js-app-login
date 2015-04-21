@@ -278,6 +278,13 @@ function ECKey(key) {
         return new Buffer(y)
       }
     },
+    'publicCodePoint': {
+      enumerable: true,
+      configurable: false,
+      get: function() {
+        return Buffer.concat([new Buffer([0x04]), x, y]);
+      }
+    }
   });
 
   // The "d" (private key) is optional
@@ -303,6 +310,22 @@ ECKey.create = function(curve) {
     curve: curve
   });
 }
+
+/* ========================================================================== *
+ * ECDH/SIGNING/VALIDATION                                                    *
+ * ========================================================================== */
+
+ECKey.prototype.createECDH = function() {
+  if (this.isPrivateECKey) {
+    var ecdh = crypto.createECDH(this.curve);
+    ecdh.setPublicKey(this.publicCodePoint);
+    ecdh.setPrivateKey(this.d);
+    return ecdh;
+  } else {
+    throw new Error('Can only create ECDH from private keys');
+  }
+}
+
 
 /* ========================================================================== *
  * CONVERSION                                                                 *
@@ -338,7 +361,7 @@ ECKey.prototype.toBuffer = function(format) {
         privateKey: ASN1ECRfc5915Key.encode({
           version: 1,
           privateKey: d,
-          publicKey: { data: Buffer.concat([new Buffer([0x04]), this.x, this.y]) }
+          publicKey: { data: this.publicCodePoint }
         }, 'der')
       }, 'der');
 
@@ -349,7 +372,7 @@ ECKey.prototype.toBuffer = function(format) {
         version: 1,
         privateKey: d,
         parameters: this.curve,
-        publicKey: { data: Buffer.concat([new Buffer([0x04]), this.x, this.y]) }
+        publicKey: { data: this.publicCodePoint }
       }, 'der');
 
     } else if ((format == "spki") || (format == "rfc5280")) {
@@ -368,7 +391,7 @@ ECKey.prototype.toBuffer = function(format) {
           publicKeyType: 'EC',
           parameters: this.curve
         },
-        publicKey: { data: Buffer.concat([new Buffer([0x04]), this.x, this.y]) }
+        publicKey: { data: this.publicCodePoint }
       }, 'der');
 
     } else {
