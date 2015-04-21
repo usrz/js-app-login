@@ -52,7 +52,7 @@ describe('SCRAM', function() {
       });
   });
 
-  it('should create a request with only a subject', function(done) {
+  it('should create a request with simply a subject', function(done) {
     new scram.Client().request('test@example.org')
       .then(function(request) {
         expect(request).to.eql({

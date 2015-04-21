@@ -2,7 +2,7 @@ var ECKey = require('../src/eckey');
 var expect = require('chai').expect;
 var fs = require('fs');
 
-describe.only('EC Key', function() {
+describe('EC Key', function() {
 
   var re = /-+BEGIN .* KEY-+([\s\S]+)-+END .* KEY-+/m;
   var names = [ 'prime256v1', 'secp384r1', 'secp521r1' ];
