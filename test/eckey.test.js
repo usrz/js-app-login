@@ -12,12 +12,12 @@ describe.only('EC Key', function() {
     for (var i = 0; i < names.length; i ++) (function(name) {
       curves[name] = {
         // PEM FILES
-        pkcs8: fs.readFileSync('./curves/' + name + '.priv-pkcs8.pem', 'utf8'),
-        priv: fs.readFileSync('./curves/' + name + '.priv-openssl.pem', 'utf8'),
-        pub: fs.readFileSync('./curves/' + name + '.pub.pem', 'utf8'),
+        pkcs8: fs.readFileSync('./test/eckey/' + name + '.priv-pkcs8.pem', 'utf8'),
+        priv: fs.readFileSync('./test/eckey/' + name + '.priv-openssl.pem', 'utf8'),
+        pub: fs.readFileSync('./test/eckey/' + name + '.pub.pem', 'utf8'),
         // JWK FILES
-        privJwk: JSON.parse(fs.readFileSync('./curves/' + name + '.priv.json', 'utf8')),
-        pubJwk: JSON.parse(fs.readFileSync('./curves/' + name + '.pub.json', 'utf8')),
+        privJwk: JSON.parse(fs.readFileSync('./test/eckey/' + name + '.priv.json', 'utf8')),
+        pubJwk: JSON.parse(fs.readFileSync('./test/eckey/' + name + '.pub.json', 'utf8')),
       }
     })(names[i]);
   });
