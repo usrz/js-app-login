@@ -154,8 +154,10 @@ describe.only('EC Key', function() {
       var key2 = new ECKey(fs.readFileSync('./test/eckey/ecdh1.pem', 'utf8'));
       var ecdh1 = key1.createECDH();
       var ecdh2 = key2.createECDH();
+      // Use code points (we test keys below)
       var secret1 = ecdh1.computeSecret(key2.publicCodePoint);
       var secret2 = ecdh2.computeSecret(key1.publicCodePoint);
+      // HEX to display errors in a sane way
       expect(secret1.toString('hex')).to.equal('620dee6f38472543ff87459fa37bc8cf9c04337aff5652327fe0ddfac88c715a');
       expect(secret2.toString('hex')).to.equal('620dee6f38472543ff87459fa37bc8cf9c04337aff5652327fe0ddfac88c715a');
     });
@@ -165,8 +167,10 @@ describe.only('EC Key', function() {
       var key2 = new ECKey.create('P-521');
       var ecdh1 = key1.createECDH();
       var ecdh2 = key2.createECDH();
-      var secret1 = ecdh1.computeSecret(key2.publicCodePoint);
-      var secret2 = ecdh2.computeSecret(key1.publicCodePoint);
+      // Use keys (we test code points above)
+      var secret1 = ecdh1.computeSecret(key2);
+      var secret2 = ecdh2.computeSecret(key1);
+      // HEX to display errors in a sane way
       expect(secret1.toString('hex')).to.eql(secret2.toString('hex'));
     });
 

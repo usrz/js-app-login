@@ -320,6 +320,15 @@ ECKey.prototype.createECDH = function() {
     var ecdh = crypto.createECDH(this.curve);
     ecdh.setPublicKey(this.publicCodePoint);
     ecdh.setPrivateKey(this.d);
+
+    var ecdhComputeSecret = ecdh.computeSecret;
+    ecdh.computeSecret = function(key) {
+      if (key instanceof ECKey) {
+        return ecdhComputeSecret.call(ecdh, key.publicCodePoint);
+      } else {
+        return ecdhComputeSecret.apply(ecdh, arguments);
+      }
+    }
     return ecdh;
   } else {
     throw new Error('Can only create ECDH from private keys');
