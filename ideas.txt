@@ -50,14 +50,13 @@ server_final {
 SHARED_KEY := HMAC(ecdh, auth_message + server_final)
 
 BEARER_TOKEN := ... subject, browser, service, encrypted_shared_key, ...
-iss -> issuer (identify key for encryption?)
-sub -> subject
-aud -> audience (service)
-azp -> authorized party (browser)
-jti -> jwt id (encrypt shared key?)
-exp, nbf, iat -> times
-
-http://www.iana.org/assignments/jwt/jwt.xhtml
+ -> iss -> issuer (identify key for encryption?)
+ -> sub -> subject
+ -> aud -> audience (service)
+ -> azp -> authorized party (browser)
+ -> jti -> jwt id (encrypt shared key?)
+ -> exp, nbf, iat -> times
+ -- http://www.iana.org/assignments/jwt/jwt.xhtml
 
 /* ========================================================================== */
 
