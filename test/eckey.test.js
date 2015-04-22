@@ -2,7 +2,7 @@ var ECKey = require('../src/eckey');
 var expect = require('chai').expect;
 var fs = require('fs');
 
-describe.only('EC Key', function() {
+describe('EC Key', function() {
 
   var re = /-+BEGIN .* KEY-+([\s\S]+)-+END .* KEY-+/m;
   var names = [ 'prime256v1', 'secp384r1', 'secp521r1' ];
@@ -173,6 +173,41 @@ describe.only('EC Key', function() {
       // HEX to display errors in a sane way
       expect(secret1.toString('hex')).to.eql(secret2.toString('hex'));
       expect(secret1.length).to.equal(66);
+    });
+
+    it('should sign and verify a simple message', function() {
+      var key = new ECKey.create('P-521');
+      var pub = key.toPublicECKey();
+
+      var sign = key.createSign('SHA512');
+      sign.write('The quick brown fox jumped over the lazy dog.', 'utf8');
+      sign.end();
+
+      var signature = sign.sign('base64');
+
+      var verify1 = key.createVerify('SHA512');
+      verify1.write('The quick brown fox jumped over the lazy dog.', 'utf8');
+      verify1.end();
+
+      expect(verify1.verify(signature, 'base64')).to.be.true;
+
+      var verify2 = pub.createVerify('SHA512');
+      verify2.write('The quick brown fox jumped over the lazy dog.', 'utf8');
+      verify2.end();
+
+      expect(verify2.verify(signature, 'base64')).to.be.true;
+
+      var xverify1 = key.createVerify('SHA512');
+      xverify1.write('The quick brown fox DID NOT jump over the lazy dog.', 'utf8');
+      xverify1.end();
+
+      expect(xverify1.verify(signature, 'base64')).to.be.false;
+
+      var xverify2 = pub.createVerify('SHA512');
+      xverify2.write('The quick brown fox DID NOT jump over the lazy dog.', 'utf8');
+      xverify2.end();
+
+      expect(xverify2.verify(signature, 'base64')).to.be.false;
     });
 
   });

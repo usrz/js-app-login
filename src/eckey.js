@@ -335,6 +335,27 @@ ECKey.prototype.createECDH = function() {
   }
 }
 
+ECKey.prototype.createSign = function(hash) {
+  if (! this.isPrivateECKey) throw new Error("EC Private Key needed to sign");
+  var sign = crypto.createSign('RSA-' + hash); // RSA works with EC keys, too
+  var signFunction = sign.sign;
+  var self = this;
+  sign.sign = function(format) {
+    return signFunction.call(sign, self.toString("pem"), format);
+  }
+  return sign;
+}
+
+ECKey.prototype.createVerify = function(hash) {
+  var verify = crypto.createVerify('RSA-' + hash); // RSA works with EC keys, too
+  var verifyFunction = verify.verify;
+  var key = this.isPrivateECKey ? this.toPublicECKey() : this;
+  verify.verify = function(signature, format) {
+    return verifyFunction.call(verify, key.toString("pem"), signature, format);
+  }
+  return verify;
+}
+
 
 /* ========================================================================== *
  * CONVERSION                                                                 *
@@ -439,7 +460,12 @@ ECKey.prototype.toString = function(format) {
     }
 
   } else {
-    if ((format == "spki") || (format == "rfc5280")) {
+    if (format == "pem") {
+      return '-----BEGIN PUBLIC KEY-----\n'
+           + this.toBuffer('spki').toString('base64').match(/.{1,64}/g).join('\n')
+           + '\n-----END PUBLIC KEY-----\n';
+
+    } else if ((format == "spki") || (format == "rfc5280")) {
       return this.toBuffer('spki').toString('base64');
 
     } else if ((format == "spki-urlsafe") || (format == "rfc5280-urlsafe")) {
