@@ -154,7 +154,7 @@ describe('SCRAM', function() {
 
         expect(request).to.eql({
           subject: 'test@example.org',
-          audience: 'audience-1',
+          audience: [ 'audience-1', 'audience-2' ],
         });
 
         // Let the server initiate a session from the request
