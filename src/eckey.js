@@ -297,7 +297,7 @@ function ECKey(key) {
   });
 }
 
-ECKey.create = function(curve) {
+ECKey.createECKey = function(curve) {
   if (curves[curve]) curve = curves[curve];
   if (!jwkCurves[curve]) throw new TypeError("Invalid/unknown curve \"" + curve + "\"");
 

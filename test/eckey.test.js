@@ -124,7 +124,7 @@ describe('EC Key', function() {
   describe('Others', function() {
 
     it('should create a key with an OpenSSL curve name', function() {
-      var key = ECKey.create('secp521r1');
+      var key = ECKey.createECKey('secp521r1');
       expect(key.curve).to.equal('secp521r1');
       expect(key.d).to.be.instanceof(Buffer);
       expect(key.x).to.be.instanceof(Buffer);
@@ -135,7 +135,7 @@ describe('EC Key', function() {
     });
 
     it('should create a key with a JWK/NIST curve name', function() {
-      var key = ECKey.create('P-256');
+      var key = ECKey.createECKey('P-256');
       expect(key.curve).to.equal('prime256v1');
       expect(key.d).to.be.instanceof(Buffer);
       expect(key.x).to.be.instanceof(Buffer);
@@ -146,7 +146,7 @@ describe('EC Key', function() {
     });
 
     it('should not create a key with an unknown curve name', function() {
-      expect(function() { ECKey.create('gonzo') }).to.throw('Invalid/unknown curve "gonzo"');
+      expect(function() { ECKey.createECKey('gonzo') }).to.throw('Invalid/unknown curve "gonzo"');
     });
 
     it('should create a couple of ECDH and negotiate a secret from existing keys', function() {
@@ -163,8 +163,8 @@ describe('EC Key', function() {
     });
 
     it('should create a couple of ECDH and negotiate a secret from random keys', function() {
-      var key1 = new ECKey.create('P-521');
-      var key2 = new ECKey.create('P-521');
+      var key1 = new ECKey.createECKey('P-521');
+      var key2 = new ECKey.createECKey('P-521');
       var ecdh1 = key1.createECDH();
       var ecdh2 = key2.createECDH();
       // Use keys (we test code points above)
@@ -176,7 +176,7 @@ describe('EC Key', function() {
     });
 
     it('should sign and verify a simple message', function() {
-      var key = new ECKey.create('P-521');
+      var key = new ECKey.createECKey('P-521');
       var pub = key.toPublicECKey();
 
       var sign = key.createSign('SHA512');
