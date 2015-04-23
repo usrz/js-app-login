@@ -7,6 +7,22 @@ browser should do scram first w/o subject/service
 
 ----> BROWSER w/o identifier
 
+... we are still vulnerable to dictionary attacks if a man in the middle
+    can eavesdrop on the connection, as in:
+    - MIM can derive the auth_message (it's in the clear)
+    - MIM gets a dictionary of all passwords, computes KDF
+    - MIM tries replicating session
+    - for https://crackstation.net/buy-crackstation-wordlist-password-cracking-dictionary.htm
+      - 1,493,677,782 passwords
+      - SHA256 w/ 65536 is ~ 50ms per core, 20 pwd/sec
+      - AWS c3.8xlarge = 32 cores, $1.68/hour, 640 pwd/sec
+      - approx 648h or 27 days on a single machine
+      - around US$ 1089
+      - FUCK!
+... webcrypto https://infotechinc.github.io/password-based-key-derivation-in-browser/
+
+================================================================================
+
 client_first {
   msg: { // this will be base 64
     nonce: ... a nonce ...
