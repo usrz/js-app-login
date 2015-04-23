@@ -182,17 +182,42 @@ function parsePem(pem) {
  * CLASS DEFINITION                                                           *
  * ========================================================================== */
 
-function ECKey(key) {
+function ECKey(key, format) {
   if (!(this instanceof ECKey)) return new ECKey(key);
 
   var curve, d, x, y;
 
   if (util.isString(key)) {
-    var k = parsePem(key);
-    curve = k.c;
-    x = k.x;
-    y = k.y;
-    d = k.d;
+    if (! format) format = 'pem';
+    if (format == 'pem') {
+      var k = parsePem(key);
+      curve = k.c;
+      x = k.x;
+      y = k.y;
+      d = k.d;
+
+    } else if ((format == "pkcs8")   || (format == "pkcs8-urlsafe")
+            || (format == "rfc5208") || (format == "rfc5208-urlsafe")) {
+      var k = parsePkcs8(base64.decode(key, 'base64'));
+      curve = k.c;
+      x = k.x;
+      y = k.y;
+      d = k.d;
+
+
+    } else if ((format == "spki")    || (format == "spki-urlsafe")
+            || (format == "rfc5280") || (format == "rfc5280-urlsafe")) {
+      var k = parseSpki(base64.decode(key, 'base64'));
+      curve = k.c;
+      x = k.x;
+      y = k.y;
+      d = k.d;
+
+    } else {
+      throw new TypeError("Unknown format for EC Key \"" + format + "\"");
+    }
+
+
   } else if (util.isObject(key)) {
     // Curves
     if (util.isString(key.curve)) {
