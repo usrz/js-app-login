@@ -1,62 +1,52 @@
 JARGON
 --> subject --> pier@usrz.com                        --> identifies "who"
---> browser --> f3ebffa1-9593-41cd-8937-b2bc4851df44 --> identifies a browser
---> service --> 66071dab-679c-4cf3-b331-f2b5f68d7f63 --> identifies a service
---> onetime --> 012345                               --> the OTP password
+--> browser --> f3ebffa1-9593-41cd-8937-b2bc4851df44 --> identifies a browser, has a secret
+--> service --> 66071dab-679c-4cf3-b331-f2b5f68d7f63 --> identifies a service, has an ecdsa key
+
+browser should do scram first w/o subject/service
 
 ----> BROWSER w/o identifier
 
 client_first {
-  nonce: ... a nonce ...
-? public_key: ... ecdhe public key ...
+  msg: { // this will be base 64
+    nonce: ... a nonce ...
+    ecdhe: ... the ecdhe public key ...
+    ecdsa: ... the ecdsa public key ...
 
-  subject: "pier@usrz.com"
-  browser: "f3ebffa1-9593-41cd-8937-b2bc4851df44"
-  service: "66071dab-679c-4cf3-b331-f2b5f68d7f63"
+    subject: "pier@usrz.com"
+    service: "66071dab-679c-4cf3-b331-f2b5f68d7f63" // optional
+  }
+  sig: ... base64 ecdsa of "msg" ...
 }
 
 server_first {
-  nonce: ... a nonce ...
-? public_key: ... ecdhe public key ...
+  msg: { // this will be base 64
+    nonce: ... a nonce ...
+    ecdhe: ... the ecdhe public key ...
+    ecdsa: ... the ecdsa public key ...
 
-  hash: ... the hash ...
+    hash: ... the hash ...
 
-  subject: ... kdf spec ...
-  onetime: ... kdf spec ...
-  browser: ... kdf spec ...
-  service: ... kdf spec ...
+    spec: { ... kdf spec ... }
+  },
+  sig: ... base64 ecdsa of "msg" ...
 }
 
-URL := timestamp + hmac(secret, timestamp + client_first + server_first))
+URL := timestamp + "." + hmac(secret, timestamp + client_first + server_first))
 
 AUTH_MESSAGE := client_first + server_first
 
 client_final {
-  subject: ... base64 ... ,
-  onetime: ... base64 ... ,
-  browser: ... base64 ... ,
-  service: ... base64 ... ,
+  prf: ... base64 ...,
+  sig: ... base64 of ECDSA(client_key) ...
 }
-
-AUTH_MESSAGE := client_first + server_first + client_final
 
 server_final {
-  subject: ... base64 ... ,
-  onetime: ... base64 ... ,
-  browser: ... base64 ... ,
-  service: ... base64 ... ,
+  prf: ... base64 ...
+  sig: ... base64 of ECDSA(client_key) ...
 }
 
-SHARED_KEY := HMAC(ecdh, auth_message + server_final)
-
-BEARER_TOKEN := ... subject, browser, service, encrypted_shared_key, ...
- -> iss -> issuer (identify key for encryption?)
- -> sub -> subject
- -> aud -> audience (service)
- -> azp -> authorized party (browser)
- -> jti -> jwt id (encrypt shared key?)
- -> exp, nbf, iat -> times
- -- http://www.iana.org/assignments/jwt/jwt.xhtml
+SECRET_KEY := HMAC(ecdh, auth_message + client_final + server_final)
 
 /* ========================================================================== */
 
@@ -74,7 +64,16 @@ BEARER_TOKEN := ... subject, browser, service, encrypted_shared_key, ...
  { client_first: "... base64 ..." ,
    server_first: "... base64 ..." ,
    client_final: "... base64 ..." ,
-   server_final: "... base64 ..." ,
-   bearer_token: "... base64 ..." }
+   server_final: "... base64 ..." }
 
+/* ========================================================================== */
+
+BEARER_TOKEN := ... subject, browser, service, encrypted_shared_key, ...
+ -> iss -> issuer (identify key for encryption?)
+ -> sub -> subject
+ -> aud -> audience (service)
+ -> azp -> authorized party (browser)
+ -> jti -> jwt id (encrypt shared key?)
+ -> exp, nbf, iat -> times
+ -- http://www.iana.org/assignments/jwt/jwt.xhtml
 
