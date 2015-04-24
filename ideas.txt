@@ -23,6 +23,46 @@ browser should do scram first w/o subject/service
 
 ================================================================================
 
+send in client first:
+- sub: the subject
+- dev: the device ID
+send in server first
+- pwd: the subject's password
+- otp: the subject's OTP
+- dev: the device secret key
+
+
+
+
+{ sub: "pier" }
+-> { pwd: 1000, SHA256 },
+   { otp: 1, SHA256 }
+{ prf: ... base64 ... }
+
+
+I have a browser Key...
+
+{ sub: "pier",
+  dev: "f3ebffa1-9593-41cd-8937-b2bc4851df44" }
+-> { dev: 1000, SHA256 }
+{ prf: ... base64 ... }
+
+-> { pwd: ...,
+     otp: ... }
+{ prf: ... base64 ... }
+
+
+{ sub, dev } --> [ pwd, otp ] -> { prf } -> [ key, tok ]
+{ dev } --> 401 --> { sub, dev } --> { [ pwd, otp ] }
+{ dev } --> { [ ] }
+
+
+browser +
+
+
+
+================================================================================
+
 client_first {
   msg: { // this will be base 64
     nonce: ... a nonce ...
