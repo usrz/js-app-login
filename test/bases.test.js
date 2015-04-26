@@ -1,7 +1,7 @@
 'use strict';
 
 var expect = require('chai').expect;
-var base32 = require('../src/base32');
+var base32 = require('../src/totp/base32');
 var base64 = require('../src/base64');
 
 // Incredibly enough, "foobar" is in the RFC :-)
