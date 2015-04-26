@@ -1,23 +1,27 @@
 'use strict';
 
+// Imports
 var KDF = require('key-derivation');
 var base64 = require('../base64');
 var crypto = require('crypto');
 var util = require('util');
 
-const CLIENT_KEY = new Buffer('Client Key', 'utf8');
-const SERVER_KEY = new Buffer('Server Key', 'utf8');
+// Defaults
 const DEFAULT_HASH = "SHA256";
-const KDF_SPEC = {
+const DEFAULT_KDF_SPEC = {
   algorithm: "PBKDF2",
   hash: "SHA256",
   iterations: 10000
 }
 
+/* ========================================================================== *
+ * Local utility functions                                                    *
+ * ========================================================================== */
+
 // -> ServerKey := HMAC(SaltedPassword, "Server Key")
 function serverKey(hash, buffer) {
  return crypto.createHmac(hash, buffer)
-              .update(SERVER_KEY)
+              .update('Server Key')
               .digest();
 }
 
@@ -25,7 +29,7 @@ function serverKey(hash, buffer) {
 // -> StoredKey := H(ClientKey)
 function storedKey(hash, buffer) {
   var clientKey = crypto.createHmac(hash, buffer)
-                        .update(CLIENT_KEY)
+                        .update('Client Key')
                         .digest();
   return crypto.createHash(hash)
                .update(clientKey)
@@ -64,7 +68,7 @@ Credentials.generateCredentials = function(key, hash) {
 Credentials.deriveCredentials = function(password, hash, kdfSpec) {
   if (! hash) hash = DEFAULT_HASH;
 
-  return new KDF(kdfSpec || KDF_SPEC)
+  return new KDF(kdfSpec || DEFAULT_KDF_SPEC)
     .promiseKey(password)
     .then(function(derived) {
 
