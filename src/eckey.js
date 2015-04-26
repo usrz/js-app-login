@@ -340,6 +340,10 @@ ECKey.createECKey = function(curve) {
  * ECDH/SIGNING/VALIDATION                                                    *
  * ========================================================================== */
 
+ECKey.prototype.computeSecret = function(key) {
+  return this.createECDH().computeSecret(key);
+}
+
 ECKey.prototype.createECDH = function() {
   if (this.isPrivateECKey) {
     var ecdh = crypto.createECDH(this.curve);

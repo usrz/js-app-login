@@ -1,4 +1,6 @@
+var Credentials = require('../src/credentials');
 var Client = require('../src/ecscram').Client;
+var Server = require('../src/ecscram').Server;
 var base64 = require('../src/base64');
 var ECKey = require('../src/eckey');
 
@@ -7,76 +9,71 @@ var fs = require('fs');
 
 describe.only('EC Scram', function() {
 
-  it('shoud create a "client_first" message', function() {
-    var client = new Client();
+  describe('Credentials', function() {
+    it('should derive some credentials', function(done) {
+      Credentials.deriveCredentials('password')
+        .then(function(cred) {
+          expect(cred.serverKey).to.be.a('string');
+          expect(cred.storedKey).to.be.a('string');
+          expect(cred.spec).to.be.a('object');
+          expect(cred.spec.algorithm).to.equal('PBKDF2');
+          expect(cred.spec.iterations).to.equal(10000);
+          expect(cred.spec.derived_key_length).to.equal(32);
+          expect(cred.spec.salt).to.be.a('string');
+          done();
+        })
 
-    var client_first = client.clientFirst('test@example.org');
-    expect(client_first.msg).to.be.a('string');
-    expect(client_first.sig).to.be.a('string');
+        .catch(function(error) {
+          done(error);
+        });
+    });
 
-    var sig = base64.decode(client_first.sig);
-    var buf = base64.decode(client_first.msg);
-    var msg = JSON.parse(buf);
-
-    expect(msg.ecdhe).to.be.a('string');
-    expect(msg.ecdsa).to.be.a('string');
-
-    expect(msg.nonce).to.be.a('string');
-    expect(base64.decode(msg.nonce).length).to.equal(32);;
-
-    expect(msg.subject).to.equal('test@example.org');
-    expect(msg.service).to.be.undefined;
-
-    expect(
-      new ECKey(msg.ecdsa, 'spki')
-        .createVerify('SHA256')
-        .update(buf)
-        .verify(sig)
-      ).to.be.true;
-
-    expect(
-      new ECKey(msg.ecdhe, 'spki')
-        .createVerify('SHA256')
-        .update(buf)
-        .verify(sig)
-      ).to.be.false;
-
+    it('should generate some credentials', function() {
+      var cred = Credentials.generateCredentials('password');
+      expect(cred.serverKey).to.equal('WmY2OGxFSkpISnhuWmhZU2dfU09yMTVVX3AtN1A5eS00bmJXaTFxc21hZw');
+      expect(cred.storedKey).to.equal('c0RtcmRGMlZwYTlEaDhxckhtZlppR19MMk1Qc0JaQmwtNHB4OUxSMXkzRQ');
+      expect(cred.spec).to.be.null;
+    });
   });
 
-  it('shoud create a "client_first" message with a service', function() {
-    var client = new Client();
+  describe('Client First', function() {
+    it('shoud create a simple "client_first" message', function() {
+      var client = new Client();
 
-    var client_first = client.clientFirst('test@example.org', 'dc9ecd4a-d2a8-47e8-bf39-77d256b42ca5');
-    expect(client_first.msg).to.be.a('string');
-    expect(client_first.sig).to.be.a('string');
+      var message = client.clientFirst('test@example.org');
 
-    var sig = base64.decode(client_first.sig);
-    var buf = base64.decode(client_first.msg);
-    var msg = JSON.parse(buf);
+      expect(message.subject).to.equal('test@example.org');
+      expect(message.public_key).to.be.a('string');
 
-    expect(msg.ecdhe).to.be.a('string');
-    expect(msg.ecdsa).to.be.a('string');
+      var key = new ECKey(message.public_key, 'spki-urlsafe');
 
-    expect(msg.nonce).to.be.a('string');
-    expect(base64.decode(msg.nonce).length).to.equal(32);;
+      expect(key.curve).to.equal('prime256v1');
+      expect(key.toString('spki-urlsafe')).to.equal(message.public_key);
+    });
 
-    expect(msg.subject).to.equal('test@example.org');
-    expect(msg.service).to.equal('dc9ecd4a-d2a8-47e8-bf39-77d256b42ca5');
+    it('shoud create a "client_first" message with extra details', function() {
+      var client = new Client("P-512");
 
-    expect(
-      new ECKey(msg.ecdsa, 'spki')
-        .createVerify('SHA256')
-        .update(buf)
-        .verify(sig)
-      ).to.be.true;
+      var message = client.clientFirst('test@example.org', { test: 123 });
 
-    expect(
-      new ECKey(msg.ecdhe, 'spki')
-        .createVerify('SHA256')
-        .update(buf)
-        .verify(sig)
-      ).to.be.false;
+      expect(message.subject).to.equal('test@example.org');
+      expect(message.test).to.equal(123);
+      expect(message.public_key).to.be.a('string');
 
+      var key = new ECKey(message.public_key, 'spki-urlsafe');
+
+      expect(key.curve).to.equal('prime256v1');
+      expect(key.toString('spki-urlsafe')).to.equal(message.public_key);
+    });
   });
+
+  it('shoud negotiate a session', function() {
+    var client = new Client();
+    var server = new Server();
+
+    var clientFirst = client.clientFirst('test@example.org');
+    var serverFirst = server.serverFirst(clientFirst);
+  });
+
 
 });
