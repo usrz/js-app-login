@@ -7,19 +7,7 @@ var util = require('util');
 function Server() {
 }
 
-Server.prototype.serverFirst = function(message) {
-  if (! message) throw new InternalServerError('No message');
-  if (! util.isString(message.client_first)) throw new BadRequest('No Client First');
-
-  // Parse the client_first
-  var clientFirst;
-  try {
-    var buffer = base64.decode(message.client_first);
-    clientFirst = JSON.parse(buffer.toString('utf8'));
-  } catch (error) {
-    console.log('ERROR', error); // TODO
-    throw new BadRequest('Unable to decode Client First');
-  }
+Server.prototype.serverFirst = function(clientFirst) {
 
   // Basic checks on client_first
   if (! util.isString(clientFirst.subject)) throw new BadRequest('No Subject in Client First');
