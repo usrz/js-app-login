@@ -7,7 +7,7 @@ var ECKey = require('../src/eckey');
 var expect = require('chai').expect;
 var fs = require('fs');
 
-describe.only('EC Scram', function() {
+describe('EC Scram', function() {
 
   describe('Credentials', function() {
     it('should derive some credentials', function(done) {

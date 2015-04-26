@@ -8,7 +8,7 @@ var xor = require('./tools').xor;
 var randomBase64 = require('./tools').randomBase64;
 var randomBuffer = require('./tools').randomBuffer;
 var normalize = require('./tools').normalize;
-var Cipher = require('./Cipher');
+var Cipher = require('../Cipher');
 
 /* ========================================================================== */
 /* SCRAM SERVER                                                               */

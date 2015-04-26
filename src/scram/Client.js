@@ -5,7 +5,7 @@ var base64 = require('../base64');
 var crypto = require('crypto');
 var util = require('util');
 
-var Cipher = require('./Cipher');
+var Cipher = require('../Cipher');
 
 var xor = require('./tools').xor;
 var normalize = require('./tools').normalize;

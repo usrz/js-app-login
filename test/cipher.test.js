@@ -1,7 +1,7 @@
 'use strict';
 
 var expect = require('chai').expect;
-var Cipher = require('../src/scram/cipher');
+var Cipher = require('../src/cipher');
 var base64 = require('../src/base64');
 
 describe('Cipher', function() {
