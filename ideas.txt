@@ -21,6 +21,21 @@ browser should do scram first w/o subject/service
       - FUCK!
 ... webcrypto https://infotechinc.github.io/password-based-key-derivation-in-browser/
 
+deriveAKey('password', 'SHA-1', 500000, 'salt'); ---> CHROME 366ms (native)
+javaScript....
+INFO [Chrome 42.0.2311 | Success: 5700 ms
+INFO [Firefox 37.0.0   | Success: 4392 ms
+INFO [Safari 8.0.5     | Success: 5472 ms
+
+================================================================================
+
+what do I want?
+
+new/wrong device            :=> password, one_time_pass
+revalidate device (daily)   :=> password, device_secret
+revalidate session (always) :=> session,  device_secret
+
+
 ================================================================================
 
 client_first: { // client first message (base64)
@@ -40,7 +55,7 @@ server_first: { // server first message (base64)
     hash: "SHA256",
     iterations: 10240
   },
-  req: [ "otp", "dev", "svc" ], // extra requirements
+  shared_key: "device_secret" / "one_time_password" / ...
 }
 
 AUTH_MESSAGE: ecdsa(keys) + *REQ* + cfm + sfm

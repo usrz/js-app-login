@@ -26,8 +26,9 @@ describe('Express Error Handler', function() {
   it('should return a 405 (Method Not Allowed) on GET', function(done) {
     request({ url: url, method: 'head' }, function(error, response, body) {
       try {
-        console.log("--->" + response.statusCode + "<---", JSON.stringify(response.body));
         expect(response.statusCode).to.equal(405);
+        expect(response.body.status).to.equal(405);
+        expect(response.body.message).to.equal("Method Not Allowed");
         done();
       } catch (error) {
         done(error);

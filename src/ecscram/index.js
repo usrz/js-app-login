@@ -17,6 +17,9 @@
  * ClientProof     := ClientKey XOR ClientSignature                           *
  *                                                                            *
  * ServerSignature := HMAC(ServerKey, AuthMessage)                            *
+ * ========================================================================== *
+ * SharedKey       := HMAC(StoredKey, OTP/APP|DEV SECRET)                     *
+ * ClientSignature := HMAC(SharedKey, AuthMessage)                            *
  * ========================================================================== */
 
 exports = module.exports = Object.freeze({

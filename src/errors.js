@@ -65,6 +65,9 @@ var httpCodes = {
   "511": "Network Authentication Required"
 }
 
+/* HTTP Status errors */
+var httpErrors = {}
+
 /* Create an HTTP error */
 function makeHttpError(code, name, defaultMessage) {
 
@@ -85,7 +88,14 @@ function makeHttpError(code, name, defaultMessage) {
   HttpError.prototype.constructor = HttpError;
   HttpError.prototype.message = defaultMessage;
   HttpError.prototype.status = parseInt(code);
-  HttpError.prototype.name = name;
+  HttpError.prototype.name = 'HTTP ' + code;
+
+  HttpError.prototype.toJSON = function() {
+    return {
+      message: this.message,
+      status: this.status
+    };
+  }
 
   return HttpError;
 }
@@ -105,8 +115,14 @@ for (var code in httpCodes) {
   var name = defaultMessage.replace(/\s/g, '');
 
   var httpError = makeHttpError(code, name, defaultMessage);
+  httpErrors[code] = httpError;
 
   var camelCased = toCamelCase(defaultMessage);
   if (camelCased != name) exports[camelCased] = httpError;
   exports[name] = httpError;
+}
+
+exports.fromStatus = function(status) {
+  if (httpErrors[status]) return httpErrors[status]();
+  return makeHttpError(status, 'UnknownError', 'Unknown Error')();
 }

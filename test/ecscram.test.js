@@ -67,7 +67,7 @@ describe('EC Scram', function() {
     });
   });
 
-  it.only('shoud negotiate a session', function() {
+  it('shoud negotiate a session', function() {
     var client = new Client();
     var server = new Server();
 

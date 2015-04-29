@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>DeriveKey</title>
+    <script>
+      var result = {};
+
+      function deriveAKey(password, hash, iterations, salt) {
+        password = stringToArrayBuffer(password);
+        salt = stringToArrayBuffer(salt || "salt");
+        hash = hash || "SHA-256";
+        iterations = iterations || 10000;
+
+        var t = new Date().getTime();
+
+        console.log('PASS:', arrayBufferToHexString(password));
+        console.log('SALT:', arrayBufferToHexString(salt));
+        console.log('HASH:', hash);
+        console.log('ITER:', iterations);
+
+        // First, create a PBKDF2 "key" containing the password
+        window.crypto.subtle.importKey(
+          "raw",
+          password,
+          {"name": "PBKDF2"},
+          false,
+          ["deriveBits"]).
+
+        // Derive a key from the password
+        then(function(baseKey){
+          result.baseKey = baseKey;
+          console.log("BASE KEY", baseKey);
+
+          return window.crypto.subtle.deriveBits({
+              "name": "PBKDF2",
+              "salt": salt,
+              "iterations": iterations,
+              "hash": hash
+            },
+            baseKey,
+            160
+          );
+
+          // return window.crypto.subtle.deriveKey({
+          //     "name": "PBKDF2",
+          //     "salt": stringToArrayBuffer(salt),
+          //     "iterations": iterations,
+          //     "hash": hash
+          //   },
+          //   baseKey,
+          //   {"name": "AES-CBC", "length": 128}, // Key we want
+          //   true,                               // Extrable
+          //   ["encrypt", "decrypt"]              // For new key
+          // );
+        }).
+
+        // Export it so we can display it
+        // then(function(aesKey) {
+        //   result.aesKey = aesKey;
+        //   console.log("AES KEY", aesKey);
+
+        //   return window.crypto.subtle.exportKey("raw", aesKey);
+        // }).
+
+        // Display it in hex format
+        then(function(keyBytes) {
+          result.keyBytes = new Uint8Array(keyBytes);
+          console.log('DERIVED', arrayBufferToHexString(keyBytes));
+          t = new Date().getTime() - t;
+          console.log("DONE IN", t);
+
+        }).
+
+        catch(function(err) {
+          result.err = err;
+          console.log("Key derivation failed", err);
+          t = new Date().getTime() - t;
+          console.log("ERR IN", t);
+        });
+
+      }
+
+      // Utility functions
+      function stringToArrayBuffer(string) {
+          var encoder = new TextEncoder("utf-8");
+          return encoder.encode(string);
+      }
+
+      function arrayBufferToHexString(arrayBuffer) {
+          var byteArray = new Uint8Array(arrayBuffer);
+          var hexString = "";
+          var nextHexByte;
+
+          for (var i=0; i<byteArray.byteLength; i++) {
+              nextHexByte = byteArray[i].toString(16);  // Integer to base 16
+              if (nextHexByte.length < 2) {
+                  nextHexByte = "0" + nextHexByte;     // Otherwise 10 becomes just a instead of 0a
+              }
+              hexString += nextHexByte;
+          }
+          return hexString;
+      }
+
+
+    </script>
+  </head>
+</html>
