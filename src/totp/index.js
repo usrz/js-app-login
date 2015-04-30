@@ -1,6 +1,6 @@
 'use strict';
 
-var base32 = require('./base32');
+var base32 = require('../util/base32');
 var crypto = require('crypto');
 var util = require('util');
 var ms = require('ms');
