@@ -1,7 +1,9 @@
 const errorlog = require('errorlog');
-errorlog.defaultLevel = errorlog.ALL;
 
 module.exports = function(grunt) {
+  errorlog.defaultLevel = errorlog.ALL;
+  errorlog.defaultLog = grunt.log.debug;
+
   grunt.option('stack', true);
 
   /* Grunt initialization */
