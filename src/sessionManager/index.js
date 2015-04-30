@@ -1,7 +1,7 @@
 'use strict';
 
 const base64 = require('../util/base64');
-const e = require('../errors');
+const e = require('../util/errors');
 
 const log = require('errorlog')();
 const crypto = require('crypto');

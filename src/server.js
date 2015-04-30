@@ -6,7 +6,7 @@ const parser = require('body-parser');
 const typeis = require('type-is');
 const base64 = require('./util/base64');
 const util = require('util');
-const e = require('./errors');
+const e = require('./util/errors');
 const ECKey = require('./eckey');
 
 var sessionManager = null;
