@@ -4,7 +4,7 @@ const Promise = global.Promise || require('promise');
 const request = require('request');
 const base64 = require('./util/base64');
 const ECKey = require('./eckey');
-const e = require('./util/errors');
+const HttpError = require('./util/HttpError');
 const util = require('util');
 const url = require('url');
 
@@ -50,7 +50,7 @@ function Client(login_url, curve) {
       request(message, function(err, res, body) {
         if (err) return reject(err);
 
-        if (res.statusCode != 201) reject(e.fromStatus(res.statusCode));
+        if (res.statusCode != 201) reject(new HttpError(res.statusCode));
 
         var location = res.headers.location;
         if (! location) throw new Error("Unable to determine session location");
@@ -83,7 +83,7 @@ function Client(login_url, curve) {
       request(message, function(err, res, body) {
         if (err) return reject(err);
 
-        //if (res.statusCode != 201) reject(e.fromStatus(res.statusCode));
+        //if (res.statusCode != 201) reject(new HttpError(res.statusCode));
 
         //var location = res.headers.location;
         //if (! location) throw new Error("Unable to determine session location");

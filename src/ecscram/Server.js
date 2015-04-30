@@ -1,5 +1,5 @@
-var InternalServerError = require('../util/errors').InternalServerError;
-var BadRequest = require('../util/errors').BadRequest;
+var InternalServerError = require('../util/HttpError').InternalServerError;
+var BadRequest = require('../util/HttpError').BadRequest;
 var base64 = require('../util/base64');
 var ECKey = require('../eckey');
 var util = require('util');

@@ -6,7 +6,7 @@ const parser = require('body-parser');
 const typeis = require('type-is');
 const base64 = require('./util/base64');
 const util = require('util');
-const e = require('./util/errors');
+const e = require('./util/HttpError');
 const ECKey = require('./eckey');
 
 var sessionManager = null;
@@ -111,6 +111,10 @@ app.post('/:session', function(req, res, next) {
 
 
 
+app.use(function(err, req, res, next) {
+  console.log('ERROR', err);
+  throw err;
+});
 
 
 // Error handling
