@@ -2,7 +2,7 @@
 
 var expect = require('chai').expect;
 var Cipher = require('../src/cipher');
-var base64 = require('../src/base64');
+var base64 = require('../src/util/base64');
 
 describe('Cipher', function() {
 

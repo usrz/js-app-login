@@ -2,7 +2,7 @@
 
 var expect = require('chai').expect;
 var base32 = require('../src/totp/base32');
-var base64 = require('../src/base64');
+var base64 = require('../src/util/base64');
 
 // Incredibly enough, "foobar" is in the RFC :-)
 var testVectors = [

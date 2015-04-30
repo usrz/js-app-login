@@ -2,7 +2,7 @@
 
 const Promise = global.Promise || require('promise');
 const request = require('request');
-const base64 = require('./base64');
+const base64 = require('./util/base64');
 const ECKey = require('./eckey');
 const e = require('./errors');
 const util = require('util');

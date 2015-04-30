@@ -23,7 +23,7 @@
  *                                                                            *
  * ========================================================================== */
 
-var base64 = require('../base64');
+var base64 = require('../util/base64');
 var crypto = require('crypto');
 var util = require('util');
 

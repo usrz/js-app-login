@@ -2,7 +2,7 @@ var crypto = require('crypto');
 var asn = require('asn1.js');
 var util = require('util');
 
-var base64 = require('../base64');
+var base64 = require('../util/base64');
 
 /* ========================================================================== *
  * From RFC-4492 (Appendix A) Equivalent Curves (Informative)                 *

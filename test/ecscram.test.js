@@ -1,7 +1,7 @@
 var Credentials = require('../src/credentials');
 var Client = require('../src/ecscram').Client;
 var Server = require('../src/ecscram').Server;
-var base64 = require('../src/base64');
+var base64 = require('../src/util/base64');
 var ECKey = require('../src/eckey');
 
 var expect = require('chai').expect;

@@ -1,6 +1,6 @@
 'use strict';
 
-const base64 = require('../base64');
+const base64 = require('../util/base64');
 const e = require('../errors');
 
 const log = require('errorlog')();
