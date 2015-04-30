@@ -3,6 +3,7 @@
 const base64 = require('../base64');
 const e = require('../errors');
 
+const log = require('errorlog')();
 const crypto = require('crypto');
 const util = require('util');
 

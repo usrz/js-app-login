@@ -2,6 +2,8 @@
 
 const base64 = require('../base64');
 const hashes = require('../util/hashes');
+
+const log = require('errorlog')('credential store');
 const crypto = require('crypto');
 const util = require('util');
 
@@ -11,14 +13,6 @@ const DEFAULT_SALT_LENGTH = hashes.bytes(DEFAULT_PBKDF2_HASH);
 const DEFAULT_KEY_LENGTH = DEFAULT_SALT_LENGTH; // same as above
 const DEFAULT_ITERATIONS = 100000;
 const MINIMUM_ITERATIONS = 5000;
-
-// {
-//   algorithm: 'PBKDF2',
-//   hash: 'SHA-256',
-//   salt: 'asdfasdfasdfasfasff',
-//   iterations: 100000,
-//   derivedKeyBits: 256
-// }
 
 function CredentialStore(fetch, store, options) {
   if (!(this instanceof CredentialStore)) return new CredentialStore(fetch, store, options);
@@ -68,6 +62,7 @@ function CredentialStore(fetch, store, options) {
 
   // Randomize fake salt
   if (fake_salt == null) {
+    log.warn('Fake salt not specified, using random bytes');
     // TODO: enable console.warn('Fake salt not specified');
     fake_salt = crypto.randomBytes(salt_length);
   }
@@ -83,6 +78,8 @@ function CredentialStore(fetch, store, options) {
     key_length:  { enumerable: true, configurable: false, value: key_length  },
     iterations:  { enumerable: true, configurable: false, value: iterations  },
   });
+
+  log.debug('Configured with', this);
 
   /* ======================================================================== *
    * Fetch/get credentials                                                    *
@@ -163,8 +160,8 @@ function CredentialStore(fetch, store, options) {
 
           /* Save, then from this callback return resolve the returned promise */
           Promise.resolve(store(identifier, credentials))
-            .then(function(rex) {
-              resolve(credentials);
+            .then(function(result) {
+              resolve(result || credentials);
             }, function(error) {
               reject(error);
             });

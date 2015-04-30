@@ -1,3 +1,6 @@
+const errorlog = require('errorlog');
+errorlog.defaultLevel = errorlog.ALL;
+
 module.exports = function(grunt) {
   grunt.option('stack', true);
 
