@@ -7,14 +7,12 @@ var server = require('../src/server.js');
 var client = require('../src/client.js');
 
 /* Our "backend" for credentials */
-var credentials = {};
-function fetch(subject) {
-  return credentials[subject];
-}
-function store(subject, c) {
-  credentials[subject] = c;
-}
-var credentialStore = require('../src/credentialStore')(fetch, store);
+var credentials = (function() {
+  var stored = {};
+  function fetch(subject) { return stored[subject] }
+  function store(subject, c) { stored[subject] = c }
+  return require('../src/credentials')(fetch, store);
+})();
 
 /* Our shared TOTP */
 var totp = require('../src/totp')({label: 'Testing'});
@@ -27,9 +25,8 @@ describe('SCRAM Login', function() {
 
   before(function(done) {
     var sessionManager = require('../src/sessionManager')('foobarbaz');
-    var credentialStore = require('../src/credentialStore')(fetch, store);
     express.locals.sessionManager = sessionManager;
-    express.locals.credentialStore = credentialStore;
+    express.locals.credentials = credentials;
     express.locals.totp = totp;
 
     express.use('/login', server);
@@ -61,7 +58,7 @@ describe('SCRAM Login', function() {
   });
 
   it('should authenticate with password and TOTP', function(done) {
-    credentialStore.set('test@example.org', 'password').then(function(credentials) {
+    credentials.set('test@example.org', 'password').then(function(cred) {
 
       var cl = client(loginurl);
 
@@ -81,7 +78,7 @@ describe('SCRAM Login', function() {
   });
 
   it('should fail authentication with the wrong password', function(done) {
-    credentialStore.set('test@example.org', 'password').then(function(credentials) {
+    credentials.set('test@example.org', 'password').then(function(cred) {
 
       var cl = client(loginurl);
 
@@ -106,7 +103,7 @@ describe('SCRAM Login', function() {
   });
 
   it('should fail authentication with the wrong totp', function(done) {
-    credentialStore.set('test@example.org', 'password').then(function(credentials) {
+    credentials.set('test@example.org', 'password').then(function(cred) {
 
       var cl = client(loginurl);
 

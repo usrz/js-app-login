@@ -14,14 +14,14 @@ const ECKey = require('./eckey');
 const log = require('errorlog')('login server');
 
 var sessionManager = null;
-var credentialStore = null;
+var credentials = null;
 var totp = null;
 
 app.on('mount', function(parent) {
   if (! parent.locals.sessionManager) throw new Error('Application "sessionManager" not in locals');
-  if (! parent.locals.credentialStore) throw new Error('Application "credentialStore" not in locals');
+  if (! parent.locals.credentials) throw new Error('Application "credentials" not in locals');
   sessionManager = parent.locals.sessionManager;
-  credentialStore = parent.locals.credentialStore;
+  credentials = parent.locals.credentials;
   totp = parent.locals.totp;
 
   log.info('Mounted under "' + app.mountpath + '"');
@@ -74,13 +74,13 @@ app.post('/', function(req, res, next) {
   var private_key = ECKey.createECKey(public_key.curve);
 
   // Get the credentials for the user
-  credentialStore.get(client_first.subject).then(function(credentials) {
+  credentials.get(client_first.subject).then(function(cred) {
 
     // Prepare our server first message
     var server_first = {
       public_key: private_key.toString('spki-urlsafe'),
-      kdf_spec: credentials.kdf_spec,
-      scram_hash: credentials.hash,
+      kdf_spec: cred.kdf_spec,
+      scram_hash: cred.hash,
       require: 'one-time-password'
     };
 
@@ -129,9 +129,9 @@ app.post('/:session', function(req, res, next) {
   }
 
   // Get the credentials for the user
-  credentialStore.get(client_first.subject).then(function(credentials) {
+  credentials.get(client_first.subject).then(function(cred) {
 
-    if (credentials.fake) log.debug('Continuing authentication for unknowm subject');
+    if (cred.fake) log.debug('Continuing authentication for unknowm subject');
 
     /* ================================================================ *
      * AuthMessage     := client-first-message-bare + "," +             *
@@ -146,7 +146,7 @@ app.post('/:session', function(req, res, next) {
      * ================================================================ */
 
     try {
-      var stored_key = base64.decode(credentials.stored_key);
+      var stored_key = base64.decode(cred.stored_key);
       var secrets = totp.many('2 min');
       var invalidate = new Array();
 
@@ -155,7 +155,7 @@ app.post('/:session', function(req, res, next) {
         invalidate.push(secrets[i]);
 
 
-        var server_signature = hashes.createHmac(credentials.hash, stored_key)
+        var server_signature = hashes.createHmac(cred.hash, stored_key)
                                      .update(nonce)
                                      .update(base64.decode(body.client_first))
                                      .update(base64.decode(body.server_first))
@@ -164,7 +164,7 @@ app.post('/:session', function(req, res, next) {
 
         var client_key = xor(base64.decode(body.client_proof), server_signature);
 
-        var derived_key = hashes.createHash(credentials.hash)
+        var derived_key = hashes.createHash(cred.hash)
                                 .update(client_key)
                                 .digest();
 
@@ -173,14 +173,14 @@ app.post('/:session', function(req, res, next) {
         console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
 
         // We're still here? Good, send out our proof!
-        var server_proof = hashes.createHmac(credentials.hash, base64.decode(credentials.server_key))
+        var server_proof = hashes.createHmac(cred.hash, base64.decode(cred.server_key))
                                  .update(nonce)
                                  .update(base64.decode(body.client_first))
                                  .update(base64.decode(body.server_first))
                                  .update(secret)
                                  .digest();
 
-        var encryption_key = hashes.createHash(credentials.hash)
+        var encryption_key = hashes.createHash(cred.hash)
                                    .update(nonce)
                                    .update(client_key)
                                    .update(secret)

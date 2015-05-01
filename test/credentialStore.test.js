@@ -1,13 +1,13 @@
 'use strict';
 
-var CredentialStore = require('../src/credentialStore');
+var Credentials = require('../src/credentials');
 
 var expect = require('chai').expect;
 
-describe('CredentialStore', function() {
+describe('Credentials', function() {
 
   it('should create with defaults', function() {
-    var store = new CredentialStore(function(){}, function(){});
+    var store = new Credentials(function(){}, function(){});
     expect(store.scram_hash).to.equal('SHA-256');
     expect(store.pbkdf2_hash).to.equal('SHA-1');
     expect(store.salt_length).to.equal(20);
@@ -16,7 +16,7 @@ describe('CredentialStore', function() {
   });
 
   it('should create with options', function() {
-    var store = new CredentialStore(function(){}, function(){}, {
+    var store = new Credentials(function(){}, function(){}, {
       scram_hash: 'sha512',
       pbkdf2_hash: 'sha384',
       salt_length: 123,
@@ -32,23 +32,23 @@ describe('CredentialStore', function() {
 
   it('should not create with bogus parameters', function() {
 
-    expect(function() { new CredentialStore(function(){}, function(){}, {
+    expect(function() { new Credentials(function(){}, function(){}, {
       scram_hash: 'bogus1',
     })}).to.throw('Hash "bogus1" unknown');
 
-    expect(function() { new CredentialStore(function(){}, function(){}, {
+    expect(function() { new Credentials(function(){}, function(){}, {
       pbkdf2_hash: 'bogus2',
     })}).to.throw('Hash "bogus2" unknown');
 
-    expect(function() { new CredentialStore(function(){}, function(){}, {
+    expect(function() { new Credentials(function(){}, function(){}, {
       salt_length: 19,
     })}).to.throw('Unwilling to truncate salts to 19 bytes (min=20)');
 
-    expect(function() { new CredentialStore(function(){}, function(){}, {
+    expect(function() { new Credentials(function(){}, function(){}, {
       key_length: 19,
     })}).to.throw('Unwilling to truncate hashes to 19 bytes (min=20)');
 
-    expect(function() { new CredentialStore(function(){}, function(){}, {
+    expect(function() { new Credentials(function(){}, function(){}, {
       iterations: 4999,
     })}).to.throw('Invalid iterations 4999 (min=5000)');
 
@@ -56,9 +56,9 @@ describe('CredentialStore', function() {
 
   it('should store a password with defaults', function(done) {
     var saved = {};
-    var store = new CredentialStore(function() {}, function(id, credentials) {
+    var store = new Credentials(function() {}, function(id, cred) {
       expect(id).to.equal('test@example.org');
-      saved = credentials;
+      saved = cred;
     });
 
     store.set('test@example.org','password')
@@ -85,9 +85,9 @@ describe('CredentialStore', function() {
 
   it('should store a password with custom parameters', function(done) {
     var saved = {};
-    var store = new CredentialStore(function() {}, function(id, credentials) {
+    var store = new Credentials(function() {}, function(id, cred) {
       expect(id).to.equal('test@example.org');
-      saved = credentials;
+      saved = cred;
     }, {
       scram_hash: 'sha512',
       pbkdf2_hash: 'sha384',
@@ -119,13 +119,13 @@ describe('CredentialStore', function() {
   });
 
   it('should return some valid credentials', function(done) {
-    var store = new CredentialStore(function(id) {
+    var store = new Credentials(function(id) {
       return id;
     }, function() {});
 
     store.get('this will be returned unchanged')
-      .then(function(credentials) {
-        expect(credentials).to.equal('this will be returned unchanged');
+      .then(function(cred) {
+        expect(cred).to.equal('this will be returned unchanged');
         done();
       })
 
@@ -134,7 +134,7 @@ describe('CredentialStore', function() {
   });
 
   it('should return some fake credentials', function(done) {
-    var store = new CredentialStore(function() {}, function() {}, {
+    var store = new Credentials(function() {}, function() {}, {
       fake_salt: '... a fake salt ...'
     });
 
@@ -150,6 +150,7 @@ describe('CredentialStore', function() {
         expect(result.hash).to.equal('SHA-256');
         expect(result.server_key).to.equal('');
         expect(result.stored_key).to.equal('');
+        expect(result.fake).to.equal(true);
         done();
       })
 

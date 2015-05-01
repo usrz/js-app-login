@@ -14,8 +14,8 @@ const DEFAULT_KEY_LENGTH = DEFAULT_SALT_LENGTH; // same as above
 const DEFAULT_ITERATIONS = 100000;
 const MINIMUM_ITERATIONS = 5000;
 
-function CredentialStore(fetch, store, options) {
-  if (!(this instanceof CredentialStore)) return new CredentialStore(fetch, store, options);
+function Credentials(fetch, store, options) {
+  if (!(this instanceof Credentials)) return new Credentials(fetch, store, options);
 
   if (! util.isFunction(fetch)) throw new TypeError('Parameter "fetch" is not a function');
   if (! util.isFunction(store)) throw new TypeError('Parameter "store" is not a function');
@@ -176,4 +176,4 @@ function CredentialStore(fetch, store, options) {
   }
 }
 
-exports = module.exports = CredentialStore;
+exports = module.exports = Credentials;
