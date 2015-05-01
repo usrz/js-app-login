@@ -27,7 +27,7 @@ var testVectorsTOTP = [
   [ new Date('2603-10-11T11:33:20.000Z'), 'SHA512', '47863826', '1234567890123456789012345678901234567890123456789012345678901234' ],
 ];
 
-describe('TOTP', function() {
+describe.only('TOTP', function() {
 
   describe('RFC-4226 test vectors', function() {
 
@@ -73,6 +73,52 @@ describe('TOTP', function() {
         expect(token.compute(timestamp)).to.equal(expected);
       });
     })(i);
+  });
+
+  describe.only('Convesion to string/json', function() {
+    it('should validate a minimal token', function() {
+      var secret = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      var token = new Token({label: 'test label', secret: secret});
+
+      expect(token.toString()).to.equal('otpauth://totp/test%20label?secret=' + secret);
+
+      var json = JSON.stringify(token);
+      expect(JSON.parse(json)).to.eql({
+        algorithm: 'SHA1',
+        label: 'test label',
+        digits: 6,
+        period: 30,
+        secret: secret
+      });
+
+      expect(new Token(JSON.parse(json))).to.eql(token);
+    });
+
+    it('should validate a fully specced token', function() {
+      var secret = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      var token = new Token({
+        algorithm: 'SHA512',
+        label: 'test label',
+        issuer: 'test issuer',
+        digits: 8,
+        period: 60,
+        secret: secret
+      });
+
+      expect(token.toString()).to.equal('otpauth://totp/test%20issuer:test%20label?secret=' + secret + '&issuer=test%20issuer&algorithm=SHA512&period=60&digits=8');
+
+      var json = JSON.stringify(token);
+      expect(JSON.parse(json)).to.eql({
+        algorithm: 'SHA512',
+        label: 'test label',
+        issuer: 'test issuer',
+        digits: 8,
+        period: 60,
+        secret: secret
+      });
+
+      expect(new Token(JSON.parse(json))).to.eql(token);
+    });
   });
 
   describe('Multiple results', function() {

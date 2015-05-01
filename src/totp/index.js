@@ -42,8 +42,8 @@ function Token(options) {
   }
 
   // Algorithm normalization
-  if (util.isFunction(algorithm.toLowerCase)) algorithm = algorithm.toLowerCase();
-  if (['sha1', 'sha256', 'sha512'].indexOf(algorithm) < 0) {
+  if (util.isFunction(algorithm.toUpperCase)) algorithm = algorithm.toUpperCase();
+  if (['SHA1', 'SHA256', 'SHA512'].indexOf(algorithm) < 0) {
     throw new TypeError('Unsupported algorithm \'' + algorithm + '\'');
   }
 
@@ -68,7 +68,6 @@ function Token(options) {
 
   // Read-only properties
   Object.defineProperties(this, {
-    'type':      { enumerable: true, configurable: false, value: 'totp' },
     'algorithm': { enumerable: true, configurable: false, value: algorithm },
     'label':     { enumerable: true, configurable: false, value: label },
     'digits':    { enumerable: true, configurable: false, value: digits },
@@ -119,7 +118,7 @@ Token.prototype.compute = function compute(at) {
   counter.writeUInt32BE(timeslot, 4);
 
   // Our HMAC derived from the counter
-  var hmac = crypto.createHmac(this.algorithm, this.secret)
+  var hmac = crypto.createHmac(this.algorithm.toLowerCase(), this.secret)
                    .update(counter)
                    .digest();
 
@@ -135,6 +134,18 @@ Token.prototype.compute = function compute(at) {
   return number;
 }
 
+Token.prototype.toJSON = function toJSON() {
+  var json = {
+    'algorithm': this.algorithm,
+    'label':     this.label,
+    'digits':    this.digits,
+    'period':    this.period,
+    'secret':    base32.encode(this.secret)
+  }
+  if (this.issuer != null) json.issuer = this.issuer;
+  return json;
+}
+
 Token.prototype.toString = function toString() {
   var string = "otpauth://totp/";
 
@@ -144,7 +155,7 @@ Token.prototype.toString = function toString() {
   string += '?secret=' + base32.encode(this.secret);
 
   if (this.issuer != null)      string += '&issuer='    + encodeURIComponent(this.issuer);
-  if (this.algorithm != 'sha1') string += '&algorithm=' + this.algorithm.toUpperCase();
+  if (this.algorithm != 'SHA1') string += '&algorithm=' + this.algorithm;
   if (this.period != 30)        string += '&period='    + this.period;
   if (this.digits != 6)         string += '&digits='    + this.digits;
 
