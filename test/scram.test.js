@@ -15,7 +15,7 @@ var credentials = (function() {
 })();
 
 /* Our shared TOTP */
-var totp = require('../src/totp')({label: 'Testing'});
+var totp = require('../src/totp/Token')({label: 'Testing'});
 
 
 describe('SCRAM Login', function() {

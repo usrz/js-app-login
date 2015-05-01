@@ -1,7 +1,7 @@
 'use strict';
 
 var expect = require('chai').expect;
-var Token = require('../src/totp');
+var Token = require('../src/totp/Token');
 
 var testVectorsHOTP = [ '755224', '287082', '359152', '969429', '338314',
                         '254676', '287922', '162583', '399871', '520489' ];
