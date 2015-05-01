@@ -5,16 +5,23 @@ const app = require('express')();
 const parser = require('body-parser');
 const typeis = require('type-is');
 const base64 = require('./util/base64');
+const hashes = require('./util/hashes');
+const xor = require('./util/xor');
 const util = require('util');
 const e = require('./util/HttpError');
 const ECKey = require('./eckey');
 
+const log = require('errorlog')('login server');
+
 var sessionManager = null;
+var credentialStore = null;
 app.on('mount', function(parent) {
   if (! parent.locals.sessionManager) throw new Error('Application "sessionManager" not in locals');
+  if (! parent.locals.credentialStore) throw new Error('Application "credentialStore" not in locals');
   sessionManager = parent.locals.sessionManager;
+  credentialStore = parent.locals.credentialStore;
 
-  console.log('Login application mounted under "' + app.mountpath + '"');
+  log.info('Mounted under "' + app.mountpath + '"');
 });
 
 // Accept only POST, restrict content type to application/json
@@ -41,7 +48,7 @@ app.post('/', function(req, res, next) {
   // Parse client first
   var client_first = null;
   try {
-    client_first = JSON.parse(base64.decode(body.client_first));
+    client_first = base64.decode_json(body.client_first);
   } catch (error) {
     throw e.BadRequest('Unable to parse "client_first"');
   }
@@ -63,31 +70,38 @@ app.post('/', function(req, res, next) {
   // Create a private key matching the public key curve
   var private_key = ECKey.createECKey(public_key.curve);
 
-  // Prepare our server first message
-  var server_first = {
-    public_key: private_key.toString('spki-urlsafe')
-  }
+  // Get the credentials for the user
+  credentialStore.get(client_first.subject).then(function(credentials) {
 
-  // Message ready for session
-  var message = {
-    client_first: body.client_first,
-    server_first: base64.encode(new Buffer(JSON.stringify(server_first), 'utf8'))
-  };
+    // Prepare our server first message
+    var server_first = {
+      public_key: private_key.toString('spki-urlsafe'),
+      kdf_spec: credentials.kdf_spec,
+      scram_hash: credentials.hash,
+      require: 'one-time-password'
+    };
 
-  // Nonce, session and verification
-  var nonce = private_key.computeSecret(public_key);
-  var session = sessionManager.create(nonce, message);
-  if (Buffer.compare(nonce, sessionManager.validate(session, message)) != 0) {
-    throw e.InternalServerError(); // just triple check
-  }
+    // Message ready for session
+    var message = {
+      client_first: body.client_first,
+      server_first: base64.encode(new Buffer(JSON.stringify(server_first), 'utf8'))
+    };
 
-  console.log("SESSION", session);
-  console.log("NONXX", nonce);
+    // Nonce, session and verification
+    var nonce = private_key.computeSecret(public_key);
+    var session = sessionManager.create(nonce, message);
 
-  // Created!
-  return res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
-            .status(201)
-            .json(message);
+    // Created!
+    res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
+       .status(201)
+       .json(message)
+       .end();
+
+
+  })
+
+  .catch(next);
+
 });
 
 // Receive a client final
@@ -98,26 +112,106 @@ app.post('/:session', function(req, res, next) {
   if (! body) throw e.BadRequest('Missing request body');
   if (! body.client_first) throw e.BadRequest('Missing "client_first"');
   if (! body.server_first) throw e.BadRequest('Missing "server_first"');
-  if (! body.client_final) throw e.BadRequest('Missing "client_final"');
+  if (! body.client_proof) throw e.BadRequest('Missing "client_proof"');
 
-  // Validate session
+  // Validate session (will throw an error)
   var nonce = sessionManager.validate(req.params.session, body);
 
-  console.log("NONCE", nonce);
+  // Parse client first
+  var client_first = null;
+  try {
+    client_first = base64.decode_json(body.client_first);
+  } catch (error) {
+    throw e.BadRequest('Unable to parse "client_first"');
+  }
 
-  return res.status(200).json({});
+  // Get the credentials for the user
+  credentialStore.get(client_first.subject).then(function(credentials) {
+
+    if (credentials.fake) log.debug('Continuing authentication for unknowm subject');
+
+    /* ================================================================ *
+     * AuthMessage     := client-first-message-bare + "," +             *
+     *                    server-first-message + "," +                  *
+     *                    client-final-message-without-proof            *
+     *                                                                  *
+     * ServerSignature := HMAC(StoredKey, AuthMessage)                  *
+     * ClientKey       := ClientProof XOR ServerSignature               *
+     *                                                                  *
+     * DerivedKey      := HASH(ClientKey)                               *
+     * ServerProof     := HMAC(ServerKey, AuthMessage)                  *
+     * ================================================================ */
+
+    try {
+      var stored_key = base64.decode(credentials.stored_key);
+
+      var server_signature = hashes.createHmac(credentials.hash, stored_key)
+                                   .update(nonce)
+                                   .update(base64.decode(body.client_first))
+                                   .update(base64.decode(body.server_first))
+                                   //.update(secret)
+                                   .digest();
+
+      var client_key = xor(base64.decode(body.client_proof), server_signature);
+
+      var derived_key = hashes.createHash(credentials.hash)
+                              .update(client_key)
+                              .digest();
+
+      // Check that the stored key is the same as our derivate, if so we're good!
+      if (Buffer.compare(stored_key, derived_key) != 0) throw e.Unauthorized();
+
+      // We're still here? Good, send out our proof!
+      var server_proof = hashes.createHmac(credentials.hash, base64.decode(credentials.server_key))
+                               .update(nonce)
+                               .update(base64.decode(body.client_first))
+                               .update(base64.decode(body.server_first))
+                               //.update(secret)
+                               .digest();
+
+      var encryption_key = hashes.createHash(credentials.hash)
+                                 .update(nonce)
+                                 .update(client_key)
+                                 //.update(secret)
+                                 .digest()
+
+      // Send out our server final
+      var message = {
+        client_first: body.client_first,
+        server_first: body.server_first,
+        server_proof: base64.encode(server_proof)
+      };
+
+      res.status(200).json(message).end();
+
+    } catch (error) {
+      next(error);
+    }
+  });
 });
 
 
-
-
-app.use(function(err, req, res, next) {
-  console.log('ERROR', err);
-  throw err;
-});
 
 
 // Error handling
+app.use(function(error, req, res, next) {
+  if (error instanceof e.HttpError) {
+    if (error.status == 401) log.debug('Authentication failure', error);
+    else if (error.status == 405) log.debug('Bad client method', error);
+    else if (error.status == 400) log.info('Bad client request', error);
+    else log.warn('Login error', error);
+  } else {
+    log.error('Uncaught exception', error);
+    error = e.InternalServerError("Internal Server Error", error);
+  }
+
+  /* This is an HTTP error */
+  return res.status(error.status)
+            .json(error)
+            .end();
+});
+
+
 app.use(function(err, req, res, next) {
   console.log('Error1:', err, err.toString());
   console.log('Error2:', JSON.stringify(err));

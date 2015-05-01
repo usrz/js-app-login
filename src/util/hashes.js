@@ -25,6 +25,12 @@ var byteLengths = {
   "SHA-512": 64,
 }
 
+function validate(name) {
+  if (! util.isString(name)) return false;
+  var normalized = name.trim().replace(/^sha-?/i, 'SHA-');
+  return (names[normalized] != null);
+}
+
 function normalize(name) {
   if (! util.isString(name)) throw new TypeError('Hash name must be a string');
   var normalized = name.trim().replace(/^sha-?/i, 'SHA-');
@@ -57,6 +63,7 @@ exports = module.exports = {
   createHmac: createHmac,
   normalize: normalize,
   algorithm: algorithm,
+  validate: validate,
   bytes: bytes,
   bits: bits
 }

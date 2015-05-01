@@ -105,6 +105,7 @@ function CredentialStore(fetch, store, options) {
           derived_key_length: key_length,
           salt: base64.encode(salt)
         },
+        fake: true,
         hash: scram_hash,
         server_key: '',
         stored_key: '',
@@ -126,9 +127,10 @@ function CredentialStore(fetch, store, options) {
       if (! util.isBuffer(password)) throw new TypeError('Password must be a buffer');
       if (password.length < 6) throw new TypeError('Corwardly refusing to save short password');
 
-      var salt = crypto.randomBytes(salt_length); //, function(err, salt) {
+      var salt = crypto.randomBytes(salt_length);
+      var buffer = new Buffer(password, 'utf8');
 
-      crypto.pbkdf2(password, salt, iterations, key_length, algorithm, function(err, key) {
+      crypto.pbkdf2(buffer, salt, iterations, key_length, algorithm, function(err, key) {
         if (err) return reject(err);
 
         try {

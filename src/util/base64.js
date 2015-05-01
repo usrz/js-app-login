@@ -24,13 +24,25 @@ function encode(data) {
   return escape(data.toString('base64'));
 };
 
+function encode_json(object) {
+  if (! util.isObject(object)) throw new TypeError('Data must be an object');
+  return encode(new Buffer(JSON.stringify(object), 'utf8'));
+}
+
 function decode(string) {
   if (! util.isString(string)) throw new Error('Data must be a string');
 
   return new Buffer(unescape(string), 'base64');
 }
 
+function decode_json(string) {
+  var buffer = decode(string);
+  return JSON.parse(buffer.toString('utf8'));
+}
+
 exports = module.exports = {
   encode: encode,
-  decode: decode
-}
+  decode: decode,
+  encode_json: encode_json,
+  decode_json: decode_json
+};
