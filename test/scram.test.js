@@ -16,6 +16,8 @@ function store(subject, c) {
 }
 var credentialStore = require('../src/credentialStore')(fetch, store);
 
+/* Our shared TOTP */
+var totp = require('../src/totp')({label: 'Testing'});
 
 
 describe('SCRAM Login', function() {
@@ -28,6 +30,7 @@ describe('SCRAM Login', function() {
     var credentialStore = require('../src/credentialStore')(fetch, store);
     express.locals.sessionManager = sessionManager;
     express.locals.credentialStore = credentialStore;
+    express.locals.totp = totp;
 
     express.use('/login', server);
     listener = express.listen(-1, '127.0.0.1', function(error) {
@@ -57,7 +60,7 @@ describe('SCRAM Login', function() {
     });
   });
 
-  it('should respond to a client first', function(done) {
+  it('should authenticate with password and TOTP', function(done) {
     credentialStore.set('test@example.org', 'password').then(function(credentials) {
 
       var cl = client(loginurl);
@@ -65,8 +68,7 @@ describe('SCRAM Login', function() {
       return cl.clientFirst('test@example.org')
         .then(function(require) {
           expect(require).to.equal('one-time-password');
-          // TODO OTP!
-          return cl.clientProof('password');
+          return cl.clientProof('password', totp.compute());
         })
         .then(function(encryption_key) {
           expect(encryption_key).to.be.instanceof(Buffer);
@@ -78,7 +80,7 @@ describe('SCRAM Login', function() {
     .catch(done);
   });
 
-  it('should fail authentication', function(done) {
+  it('should fail authentication with the wrong password', function(done) {
     credentialStore.set('test@example.org', 'password').then(function(credentials) {
 
       var cl = client(loginurl);
@@ -86,11 +88,35 @@ describe('SCRAM Login', function() {
       return cl.clientFirst('test@example.org')
         .then(function(require) {
           expect(require).to.equal('one-time-password');
-          // TODO OTP!
-          return cl.clientProof('not a valid password');
+          return cl.clientProof('not a valid password', totp.compute());
         })
         .then(function(encryption_key) {
           done(new Error('Returned encryption key for invalid password'))
+        });
+
+    }).catch(function(error) {
+      try {
+        expect(error).to.be.instanceof(Error);
+        expect(error.message).to.equal('Authentication failed');
+        done();
+      } catch (error) {
+        done(error);
+      }
+    });
+  });
+
+  it('should fail authentication with the wrong totp', function(done) {
+    credentialStore.set('test@example.org', 'password').then(function(credentials) {
+
+      var cl = client(loginurl);
+
+      return cl.clientFirst('test@example.org')
+        .then(function(require) {
+          expect(require).to.equal('one-time-password');
+          return cl.clientProof('password', '000000');
+        })
+        .then(function(encryption_key) {
+          done(new Error('Returned encryption key for invalid totp'))
         });
 
     }).catch(function(error) {
@@ -110,8 +136,7 @@ describe('SCRAM Login', function() {
     return cl.clientFirst('unknown@example.org')
       .then(function(require) {
         expect(require).to.equal('one-time-password');
-        // TODO OTP!
-        return cl.clientProof('password');
+        return cl.clientProof('password', '000000');
       })
       .then(function(encryption_key) {
         done(new Error('Returned encryption key for invalid password'))

@@ -15,11 +15,14 @@ const log = require('errorlog')('login server');
 
 var sessionManager = null;
 var credentialStore = null;
+var totp = null;
+
 app.on('mount', function(parent) {
   if (! parent.locals.sessionManager) throw new Error('Application "sessionManager" not in locals');
   if (! parent.locals.credentialStore) throw new Error('Application "credentialStore" not in locals');
   sessionManager = parent.locals.sessionManager;
   credentialStore = parent.locals.credentialStore;
+  totp = parent.locals.totp;
 
   log.info('Mounted under "' + app.mountpath + '"');
 });
@@ -144,49 +147,61 @@ app.post('/:session', function(req, res, next) {
 
     try {
       var stored_key = base64.decode(credentials.stored_key);
+      var secrets = totp.many('2 min');
+      var invalidate = new Array();
 
-      var server_signature = hashes.createHmac(credentials.hash, stored_key)
-                                   .update(nonce)
-                                   .update(base64.decode(body.client_first))
-                                   .update(base64.decode(body.server_first))
-                                   //.update(secret)
-                                   .digest();
+      for (var i = 0; i < secrets.length; i ++) {
+        var secret = new Buffer(secrets[i], 'utf8');
+        invalidate.push(secrets[i]);
 
-      var client_key = xor(base64.decode(body.client_proof), server_signature);
 
-      var derived_key = hashes.createHash(credentials.hash)
-                              .update(client_key)
-                              .digest();
+        var server_signature = hashes.createHmac(credentials.hash, stored_key)
+                                     .update(nonce)
+                                     .update(base64.decode(body.client_first))
+                                     .update(base64.decode(body.server_first))
+                                     .update(secret)
+                                     .digest();
 
-      // Check that the stored key is the same as our derivate, if so we're good!
-      if (Buffer.compare(stored_key, derived_key) != 0) throw e.Unauthorized();
+        var client_key = xor(base64.decode(body.client_proof), server_signature);
 
-      // We're still here? Good, send out our proof!
-      var server_proof = hashes.createHmac(credentials.hash, base64.decode(credentials.server_key))
-                               .update(nonce)
-                               .update(base64.decode(body.client_first))
-                               .update(base64.decode(body.server_first))
-                               //.update(secret)
-                               .digest();
+        var derived_key = hashes.createHash(credentials.hash)
+                                .update(client_key)
+                                .digest();
 
-      var encryption_key = hashes.createHash(credentials.hash)
+        // Check that the stored key is the same as our derivate, if so we're good!
+        if (Buffer.compare(stored_key, derived_key) != 0) continue;
+        console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
+
+        // We're still here? Good, send out our proof!
+        var server_proof = hashes.createHmac(credentials.hash, base64.decode(credentials.server_key))
                                  .update(nonce)
-                                 .update(client_key)
-                                 //.update(secret)
-                                 .digest()
+                                 .update(base64.decode(body.client_first))
+                                 .update(base64.decode(body.server_first))
+                                 .update(secret)
+                                 .digest();
 
-      // Send out our server final
-      var message = {
-        client_first: body.client_first,
-        server_first: body.server_first,
-        server_proof: base64.encode(server_proof)
-      };
+        var encryption_key = hashes.createHash(credentials.hash)
+                                   .update(nonce)
+                                   .update(client_key)
+                                   .update(secret)
+                                   .digest()
 
-      res.status(200).json(message).end();
+        // Send out our server final
+        var message = {
+          client_first: body.client_first,
+          server_first: body.server_first,
+          server_proof: base64.encode(server_proof)
+        };
 
+        return res.status(200).json(message).end();
+      }
     } catch (error) {
       next(error);
     }
+
+    // We finished our secrets...
+    next(e.Unauthorized());
+
   });
 });
 

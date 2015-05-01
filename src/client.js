@@ -140,6 +140,11 @@ function Client(login_url, curve) {
       if (! password) throw new TypeError('No password specified');
       if (! util.isString(password)) throw new TypeError('Password must be a string');
 
+      if (! secret) throw new TypeError('No secret specified');
+      if (! util.isString(secret)) throw new TypeError('Secret must be a string');
+      console.log("CLIENT SECRET", secret);
+
+
       if (! util.isBuffer(salt)) throw new Error('Salt never decoded');
       if (!(salt.length >= hash_length)) throw new Error('Refusing to generate key with short (' + salt_length + ' bytes) salt');
       if (!(derived_key_length >= hash_length)) throw new Error('Refusing to generate short (' + salt_length + ' bytes) key');
@@ -181,7 +186,7 @@ function Client(login_url, curve) {
                                        .update(nonce)
                                        .update(base64.decode(client_first))
                                        .update(base64.decode(server_first))
-                                       //.update(secret)
+                                       .update(secret)
                                        .digest();
 
           var client_proof = base64.encode(xor(client_key, client_signature));
@@ -222,7 +227,7 @@ function Client(login_url, curve) {
                                        .update(nonce)
                                        .update(base64.decode(client_first))
                                        .update(base64.decode(server_first))
-                                       //.update(secret)
+                                       .update(new Buffer(secret, 'utf8'))
                                        .digest();
 
               if (Buffer.compare(server_proof, base64.decode(body.server_proof)) != 0) {
@@ -232,7 +237,7 @@ function Client(login_url, curve) {
               var encryption_key = hashes.createHash(scram_hash)
                                          .update(nonce)
                                          .update(client_key)
-                                         //.update(secret)
+                                         .update(new Buffer(secret, 'utf8'))
                                          .digest()
 
               // Return our encryption key (TODO: token)
