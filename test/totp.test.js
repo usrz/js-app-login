@@ -27,7 +27,7 @@ var testVectorsTOTP = [
   [ new Date('2603-10-11T11:33:20.000Z'), 'SHA512', '47863826', '1234567890123456789012345678901234567890123456789012345678901234' ],
 ];
 
-describe.only('TOTP', function() {
+describe('TOTP', function() {
 
   describe('RFC-4226 test vectors', function() {
 
@@ -75,7 +75,7 @@ describe.only('TOTP', function() {
     })(i);
   });
 
-  describe.only('Convesion to string/json', function() {
+  describe('Convesion to string/json', function() {
     it('should validate a minimal token', function() {
       var secret = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
       var token = new Token({label: 'test label', secret: secret});
