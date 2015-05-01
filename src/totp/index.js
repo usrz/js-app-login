@@ -84,6 +84,30 @@ function Token(options) {
   });
 }
 
+Token.prototype.many = function many(drift, from) {
+  if (! from) from = new Date().getTime();
+  else if (util.isDate(from)) from = from.getTime();
+  else if (! util.isNumber(from)) throw new Error('Must be called with a date (or ms from epoch)');
+
+  if (util.isString(drift)) drift = ms(drift);
+  drift = drift ? Math.round(drift) : 0;
+  if (!(drift >= 0)) throw new Error('Drift can not be negative');
+
+  var results = new Array();
+
+  // Our counters...
+  var min = Math.floor((from - drift) / 1000 / this.period);
+  var max = Math.floor((from + drift) / 1000 / this.period);
+
+  // For each "counter", compute
+  for (var i = min; i <= max; i ++) {
+    var at = i * this.period * 1000;
+    results.push(this.compute(at));
+  }
+
+  return results;
+}
+
 Token.prototype.compute = function compute(at) {
   if (! at) at = new Date().getTime();
   else if (util.isDate(at)) at = at.getTime();

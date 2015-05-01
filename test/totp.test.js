@@ -75,6 +75,47 @@ describe('TOTP', function() {
     })(i);
   });
 
+  describe('Multiple results', function() {
+
+    var token = new Token({
+      label: 'Testing secret',
+      secret: new Buffer('a simple secret', 'utf8'),
+      period: '2 min',
+      digits: 8
+    });
+
+    // At is precisely at our period clock..
+    var at = new Date('2015-01-01T00:30:00.000Z');
+    var atless1 = new Date('2015-01-01T00:29:59.000Z');
+    var atplus1 = new Date('2015-01-01T00:30:00.000Z');
+
+    it('should validate a single result', function() {
+      expect(token.compute(at)).to.equal('94402263');
+      expect(token.compute(atless1)).to.equal('80619832');
+      expect(token.compute(atplus1)).to.equal('94402263');
+    });
+
+    it('should produce one result with no drift', function() {
+      expect(token.many(0, at)).to.eql(['94402263']);
+      expect(token.many(0, atless1)).to.eql(['80619832']);
+      expect(token.many(0, atplus1)).to.eql(['94402263']);
+    });
+
+    it('should produce two result with minimal drift', function() {
+      expect(token.many('1 min', at)).to.eql(['80619832', '94402263']);
+    });
+
+    it('should produce three result with drift same as period', function() {
+      expect(token.many('2 min', at)).to.eql(['80619832', '94402263', '85972092']);
+      expect(token.many('2 min', atless1)).to.eql(['75356764', '80619832', '94402263']);
+      expect(token.many('2 min', atplus1)).to.eql(['80619832', '94402263', '85972092']);
+    });
+
+    it('should produce a bunch of result with normal drift', function() {
+      expect(token.many('5 min', at)).to.eql(['19216581', '75356764', '80619832', '94402263', '85972092', '41742200']);
+    });
+  });
+
   // Just check with Google Authenticator... RFC-6238 makes assumptions when dealing with
   // SHA256 and 512 (the secret is *NOT* 12345678901234567890, but a repetition thereof
   describe('Google Validator compliance (results generated manually - see comments)', function() {
