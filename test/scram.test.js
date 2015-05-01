@@ -58,14 +58,14 @@ describe('SCRAM Login', function() {
   });
 
   it('should authenticate with password and TOTP', function(done) {
-    credentials.set('test@example.org', 'password').then(function(cred) {
+    credentials.set('test@example.org', 'password1').then(function() {
 
       var cl = client(loginurl);
 
       return cl.clientFirst('test@example.org')
         .then(function(require) {
           expect(require).to.equal('one-time-password');
-          return cl.clientProof('password', totp.compute());
+          return cl.clientProof('password1', totp.compute());
         })
         .then(function(encryption_key) {
           expect(encryption_key).to.be.instanceof(Buffer);
@@ -78,7 +78,7 @@ describe('SCRAM Login', function() {
   });
 
   it('should fail authentication with the wrong password', function(done) {
-    credentials.set('test@example.org', 'password').then(function(cred) {
+    credentials.set('test@example.org', 'password2').then(function() {
 
       var cl = client(loginurl);
 
@@ -103,14 +103,14 @@ describe('SCRAM Login', function() {
   });
 
   it('should fail authentication with the wrong totp', function(done) {
-    credentials.set('test@example.org', 'password').then(function(cred) {
+    credentials.set('test@example.org', 'password3').then(function() {
 
       var cl = client(loginurl);
 
       return cl.clientFirst('test@example.org')
         .then(function(require) {
           expect(require).to.equal('one-time-password');
-          return cl.clientProof('password', '000000');
+          return cl.clientProof('password3', '000000');
         })
         .then(function(encryption_key) {
           done(new Error('Returned encryption key for invalid totp'))
