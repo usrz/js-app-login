@@ -17,6 +17,7 @@ describe('Credentials', function() {
 
   it('should create with options', function() {
     var store = new Credentials(function(){}, function(){}, {
+      fake_salt: 'shut up!',
       scram_hash: 'sha512',
       pbkdf2_hash: 'sha384',
       salt_length: 123,
@@ -59,7 +60,7 @@ describe('Credentials', function() {
     var store = new Credentials(function() {}, function(id, cred) {
       expect(id).to.equal('test@example.org');
       saved = cred;
-    });
+    }, { fake_salt: 'shut up!' });
 
     store.set('test@example.org','password')
       .then(function(result) {
@@ -89,6 +90,7 @@ describe('Credentials', function() {
       expect(id).to.equal('test@example.org');
       saved = cred;
     }, {
+      fake_salt: 'shut up!',
       scram_hash: 'sha512',
       pbkdf2_hash: 'sha384',
       salt_length: 123,
@@ -121,7 +123,7 @@ describe('Credentials', function() {
   it('should return some valid credentials', function(done) {
     var store = new Credentials(function(id) {
       return id;
-    }, function() {});
+    }, function() {}, { fake_salt: 'shut up!' });
 
     store.get('this will be returned unchanged')
       .then(function(cred) {
@@ -133,28 +135,24 @@ describe('Credentials', function() {
 
   });
 
-  it('should return some fake credentials', function(done) {
+  it('should return some fake credentials', function() {
     var store = new Credentials(function() {}, function() {}, {
       fake_salt: '... a fake salt ...'
     });
 
-    store.get('test@example.org')
-      .then(function(result) {
-        // console.log('result', result);
-        expect(result.kdf_spec).to.be.a('object');
-        expect(result.kdf_spec.algorithm).to.equal('PBKDF2');
-        expect(result.kdf_spec.hash).to.equal('SHA-1');
-        expect(result.kdf_spec.iterations).to.equal(100000);
-        expect(result.kdf_spec.derived_key_length).to.equal(20);
-        expect(result.kdf_spec.salt).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg');
-        expect(result.hash).to.equal('SHA-256');
-        expect(result.server_key).to.equal('');
-        expect(result.stored_key).to.equal('');
-        expect(result.fake).to.equal(true);
-        done();
-      })
+    var result = store.fake('test@example.org');
 
-      .catch(done);
+    // console.log('result', result);
+    expect(result.kdf_spec).to.be.a('object');
+    expect(result.kdf_spec.algorithm).to.equal('PBKDF2');
+    expect(result.kdf_spec.hash).to.equal('SHA-1');
+    expect(result.kdf_spec.iterations).to.equal(100000);
+    expect(result.kdf_spec.derived_key_length).to.equal(20);
+    expect(result.kdf_spec.salt).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg');
+    expect(result.hash).to.equal('SHA-256');
+    expect(result.server_key).to.equal('');
+    expect(result.stored_key).to.equal('');
+    expect(result.fake).to.equal(true);
 
   });
 });

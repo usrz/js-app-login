@@ -82,34 +82,44 @@ function Credentials(fetch, store, options) {
   log.debug('Configured with', this);
 
   /* ======================================================================== *
+   * Fake credentials                                                         *
+   * ======================================================================== */
+
+  this.fake = function(identifier) {
+    if (! identifier) throw new TypeError('No identifer specified');
+    if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
+
+    // No credentials... Fake it, using PBKDF2 to generate a salt!
+    var salt = crypto.pbkdf2Sync(identifier, fake_salt, 1, salt_length, "sha1");
+
+    return {
+      kdf_spec: {
+        algorithm: 'PBKDF2',
+        hash: pbkdf2_hash,
+        iterations: iterations,
+        derived_key_length: key_length,
+        salt: base64.encode(salt)
+      },
+      fake: true,
+      hash: scram_hash,
+      server_key: '',
+      stored_key: '',
+    };
+  }
+
+  /* ======================================================================== *
    * Fetch/get credentials                                                    *
    * ======================================================================== */
 
   this.get = function(identifier) {
+    var self = this;
     return Promise.resolve(fetch(identifier)).then(function(credentials) {
 
       if (! identifier) throw new TypeError('No identifer specified');
       if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
 
       // If we found some credentials, return them
-      if (credentials) return credentials;
-
-      // No credentials... Fake it, using PBKDF2 to generate a salt!
-      var salt = crypto.pbkdf2Sync(identifier, fake_salt, 1, salt_length, "sha1");
-
-      return {
-        kdf_spec: {
-          algorithm: 'PBKDF2',
-          hash: pbkdf2_hash,
-          iterations: iterations,
-          derived_key_length: key_length,
-          salt: base64.encode(salt)
-        },
-        fake: true,
-        hash: scram_hash,
-        server_key: '',
-        stored_key: '',
-      };
+      return Promise.resolve(credentials);
     });
   }
 

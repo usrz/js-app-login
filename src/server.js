@@ -75,32 +75,39 @@ app.post('/', function(req, res, next) {
 
   // Get the credentials for the user
   credentials.get(client_first.subject).then(function(cred) {
+    try {
+      if (! cred) {
+        log.debug('Continuing authentication for unknown user %s', client_first.subject);
+        cred = credentials.fake(client_first.subject);
+      }
 
-    // Prepare our server first message
-    var server_first = {
-      public_key: private_key.toString('spki-urlsafe'),
-      kdf_spec: cred.kdf_spec,
-      scram_hash: cred.hash,
-      require: 'one-time-password'
-    };
+      // Prepare our server first message
+      var server_first = {
+        public_key: private_key.toString('spki-urlsafe'),
+        kdf_spec: cred.kdf_spec,
+        scram_hash: cred.hash,
+        require: 'one-time-password'
+      };
 
-    // Message ready for session
-    var message = {
-      client_first: body.client_first,
-      server_first: base64.encode(new Buffer(JSON.stringify(server_first), 'utf8'))
-    };
+      // Message ready for session
+      var message = {
+        client_first: body.client_first,
+        server_first: base64.encode(new Buffer(JSON.stringify(server_first), 'utf8'))
+      };
 
-    // Nonce, session and verification
-    var nonce = private_key.computeSecret(public_key);
-    var session = sessionManager.create(nonce, message);
+      // Nonce, session and verification
+      var nonce = private_key.computeSecret(public_key);
+      var session = sessionManager.create(nonce, message);
 
-    // Created!
-    res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
-       .status(201)
-       .json(message)
-       .end();
+      // Created!
+      res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
+         .status(201)
+         .json(message)
+         .end();
 
-
+    } catch (error) {
+      next(error);
+    }
   })
 
   .catch(next);
@@ -130,8 +137,7 @@ app.post('/:session', function(req, res, next) {
 
   // Get the credentials for the user
   credentials.get(client_first.subject).then(function(cred) {
-
-    if (cred.fake) log.debug('Continuing authentication for unknowm subject');
+    if (! cred) return next(e.Unauthorized());
 
     /* ================================================================ *
      * AuthMessage     := client-first-message-bare + "," +             *

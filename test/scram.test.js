@@ -11,7 +11,7 @@ var credentials = (function() {
   var stored = {};
   function fetch(subject) { return stored[subject] }
   function store(subject, c) { stored[subject] = c }
-  return require('../src/credentials')(fetch, store);
+  return require('../src/credentials')(fetch, store, { fake_salt: 'shut up!' });
 })();
 
 /* Our shared TOTP */
