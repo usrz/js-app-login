@@ -3,8 +3,6 @@ const errorlog = require('errorlog');
 module.exports = function(grunt) {
   grunt.option('stack', true);
 
-  console.log(grunt.cli.options);
-
   if (grunt.cli.options.log === true) {
     errorlog.defaultLevel = errorlog.INFO;
   } else if (grunt.cli.options.log) {
