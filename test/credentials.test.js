@@ -4,7 +4,7 @@ var Credentials = require('../src/credentials');
 
 var expect = require('chai').expect;
 
-describe('Credentials', function() {
+describe.only('Credentials', function() {
 
   it('should create with defaults', function() {
     var store = new Credentials(function(){}, function(){});
@@ -132,10 +132,23 @@ describe('Credentials', function() {
       })
 
       .catch(done);
-
   });
 
-  it('should return some fake credentials', function() {
+  it('should return nothing for an unknown user', function(done) {
+    var store = new Credentials(function(id) {
+      return null;
+    }, function() {}, { fake_salt: 'shut up!' });
+
+    store.get('this will be returned unchanged')
+      .then(function(cred) {
+        expect(cred).to.be.null;
+        done();
+      })
+
+      .catch(done);
+  });
+
+  it('should generate some fake credentials', function() {
     var store = new Credentials(function() {}, function() {}, {
       fake_salt: '... a fake salt ...'
     });
@@ -153,6 +166,39 @@ describe('Credentials', function() {
     expect(result.server_key).to.equal('');
     expect(result.stored_key).to.equal('');
     expect(result.fake).to.equal(true);
+  });
 
+  it('should should reject when fetch throws an error', function(done) {
+    var store = new Credentials(function(id) {
+      throw new Error('Thrown for ' + id);
+    }, function() {}, { fake_salt: 'shut up!' });
+
+    store.get('test@example.org')
+      .then(function(token) {
+        done(new Error('Should have thrown an error'));
+      })
+      .catch(function(error) {
+        expect(error).to.be.instanceof(Error);
+        expect(error.message).to.equal('Thrown for test@example.org');
+        done();
+      })
+      .catch(done);
+  });
+
+  it('should should reject when store throws an error', function(done) {
+    var store = new Credentials(function() {}, function(id) {
+      throw new Error('Thrown for ' + id);
+    }, { fake_salt: 'shut up!' });
+
+    store.set('test@example.org', 'password')
+      .then(function(token) {
+        done(new Error('Should have thrown an error'));
+      })
+      .catch(function(error) {
+        expect(error).to.be.instanceof(Error);
+        expect(error.message).to.equal('Thrown for test@example.org');
+        done();
+      })
+      .catch(done);
   });
 });

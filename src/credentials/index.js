@@ -171,11 +171,9 @@ function Credentials(fetch, store, options) {
 
           /* Save, then from this callback return resolve the returned promise */
           Promise.resolve(store(identifier, credentials))
-            .then(function(result) {
-              resolve(result || credentials);
-            }, function(error) {
-              reject(error);
-            });
+            .then(function() {
+              resolve(credentials);
+            }, reject);
 
         } catch(error) {
           reject(error);
