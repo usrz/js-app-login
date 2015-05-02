@@ -4,10 +4,13 @@ const base64 = require('../util/base64');
 const e = require('../util/HttpError');
 
 const log = require('errorlog')();
+
 const crypto = require('crypto');
 const util = require('util');
+const ms = require('ms');
 
-const DEFAULT_TIMEOUT = 60000; // 1 minute
+const DEFAULT_TIMEOUT = ms('3 min');
+const MINIMUM_TIMEOUT = ms('1 min');
 
 const secrets = new WeakMap();
 
@@ -27,7 +30,7 @@ function SessionManager(secret, timeout) {
   if (! timeout) timeout = DEFAULT_TIMEOUT;
   if (util.isString(timeout)) timeout = ms(timeout) || timeout;
   if (! util.isNumber(timeout)) throw new TypeError('Invalid timeout "' + timeout + '"');
-  if (timeout < DEFAULT_TIMEOUT) throw new TypeError('Minimum timeout must be at least 1 minute');
+  if (timeout < MINIMUM_TIMEOUT) throw new TypeError('Timeout must be at least ' + ms(MINIMUM_TIMEOUT));
 
   // Timeout is a publi value...
   Object.defineProperty(this, 'timeout', {

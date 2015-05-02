@@ -1,17 +1,19 @@
 'use strict'
 
 
+const util = require('util');
+
+const log = require('errorlog')('login server');
 const app = require('express')();
+
 const parser = require('body-parser');
 const typeis = require('type-is');
+
+const e = require('./util/HttpError');
 const base64 = require('./util/base64');
 const hashes = require('./util/hashes');
 const xor = require('./util/xor');
-const util = require('util');
-const e = require('./util/HttpError');
 const ECKey = require('./eckey');
-
-const log = require('errorlog')('login server');
 
 var sessionManager = null;
 var credentials = null;
@@ -188,7 +190,7 @@ app.post('/:session', function(req, res, next) {
 
         // Check that the stored key is the same as our derivate, if so we're good!
         if (Buffer.compare(stored_key, derived_key) != 0) continue;
-        console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
+        // TODO console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
 
         // We're still here? Good, send out our proof!
         var server_proof = hashes.createHmac(cred.hash, base64.decode(cred.server_key))
@@ -241,21 +243,6 @@ app.use(function(error, req, res, next) {
             .json(error)
             .end();
 });
-
-
-app.use(function(err, req, res, next) {
-  console.log('Error1:', err, err.toString());
-  console.log('Error2:', JSON.stringify(err));
-  res.status(Number(err.status) || 500);
-  return res.json(err);
-});
-
-
-
-
-
-
-
 
 /* ========================================================================== */
 /* Export our application                                                     */

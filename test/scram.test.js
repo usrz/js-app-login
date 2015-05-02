@@ -33,7 +33,7 @@ var totp = (function() {
   return require('../src/totp')(fetch, store);
 })();
 
-describe.only('SCRAM Login', function() {
+describe('SCRAM Login', function() {
 
   var listener = null;
   var loginurl = null;

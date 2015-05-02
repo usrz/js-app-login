@@ -4,7 +4,7 @@ var Credentials = require('../src/credentials');
 
 var expect = require('chai').expect;
 
-describe.only('Credentials', function() {
+describe('Credentials', function() {
 
   it('should create with defaults', function() {
     var store = new Credentials(function(){}, function(){});

@@ -142,8 +142,6 @@ function Client(login_url, curve) {
 
       if (! secret) throw new TypeError('No secret specified');
       if (! util.isString(secret)) throw new TypeError('Secret must be a string');
-      console.log("CLIENT SECRET", secret);
-
 
       if (! util.isBuffer(salt)) throw new Error('Salt never decoded');
       if (!(salt.length >= hash_length)) throw new Error('Refusing to generate key with short (' + salt_length + ' bytes) salt');
