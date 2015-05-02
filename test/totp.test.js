@@ -1,7 +1,8 @@
 'use strict';
 
 var expect = require('chai').expect;
-var Token = require('../src/totp').Token;
+var TOTP = require('../src/totp');
+var Token = TOTP.Token;
 
 var testVectorsHOTP = [ '755224', '287082', '359152', '969429', '338314',
                         '254676', '287922', '162583', '399871', '520489' ];
@@ -29,6 +30,83 @@ var testVectorsTOTP = [
 
 describe('TOTP', function() {
 
+  describe('Token storage', function() {
+
+    var secrets = {}, totp;
+    before(function() {
+      totp = new TOTP(function(id) {
+        if (! secrets[id]) return null;
+        return Promise.resolve(JSON.parse(secrets[id]));
+      }, function(id, token) {
+        secrets[id] = JSON.stringify(token);
+        return Promise.resolve(JSON.parse(secrets[id]));
+      })
+    });
+
+    it('should store and retrieve a token with no options', function(done) {
+      var t = null;
+      totp.set('test@example.org')
+        .then(function(token) {
+          expect(token).to.be.instanceof(Token);
+          expect(token.toString()).to.match(/^otpauth:\/\/totp\/test@example.org\?secret=/);
+          t = token;
+          return totp.get('test@example.org');
+        })
+        .then(function(token) {
+          expect(token).to.be.instanceof(Token);
+          expect(token).to.not.equal(t);
+          expect(token).to.eql(t);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should not return a token for an unknown user', function(done) {
+      totp.get('nosuchuser@example.org')
+        .then(function(token) {
+          expect(token).to.be.null;
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should should reject when fetch throws an error', function(done) {
+      var totp = new TOTP(function(id) {
+        throw new Error('Thrown for ' + id);
+      }, function(id, token) {});
+
+      totp.get('test@example.org')
+        .then(function(token) {
+          done(new Error('Should have thrown an error'));
+        })
+        .catch(function(error) {
+          expect(error).to.be.instanceof(Error);
+          expect(error.message).to.equal('Thrown for test@example.org');
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should should reject when store throws an error', function(done) {
+      var totp = new TOTP(function(id) {}, function(id, token) {
+        throw new Error('Thrown for ' + id);
+      });
+
+      totp.set('test@example.org')
+        .then(function(token) {
+          done(new Error('Should have thrown an error'));
+        })
+        .catch(function(error) {
+          expect(error).to.be.instanceof(Error);
+          expect(error.message).to.equal('Thrown for test@example.org');
+          done();
+        })
+        .catch(done);
+    });
+  });
+
+  /* ======================================================================== */
+
   describe('RFC-4226 test vectors', function() {
 
     // HOTP / RFC-4266 test vectors with precalculated time -> counter
@@ -49,6 +127,8 @@ describe('TOTP', function() {
       });
     })(i);
   });
+
+  /* ======================================================================== */
 
   describe('RFC-6238 test vectors', function() {
 
@@ -74,6 +154,8 @@ describe('TOTP', function() {
       });
     })(i);
   });
+
+  /* ======================================================================== */
 
   describe('Convesion to string/json', function() {
     it('should validate a minimal token', function() {
@@ -121,6 +203,8 @@ describe('TOTP', function() {
     });
   });
 
+  /* ======================================================================== */
+
   describe('Multiple results', function() {
 
     var token = new Token({
@@ -161,6 +245,8 @@ describe('TOTP', function() {
       expect(token.many('5 min', at)).to.eql(['19216581', '75356764', '80619832', '94402263', '85972092', '41742200']);
     });
   });
+
+  /* ======================================================================== */
 
   // Just check with Google Authenticator... RFC-6238 makes assumptions when dealing with
   // SHA256 and 512 (the secret is *NOT* 12345678901234567890, but a repetition thereof
