@@ -12,25 +12,35 @@ function TOTP(fetch, store) {
    * Fetch/get a token                                                        *
    * ======================================================================== */
   this.get = function(identifier) {
-    if (! identifier) throw new TypeError('No identifer specified');
-    if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
+    return new Promise(function(resolve, reject) {
 
-    var token = fetch(identifier);
+      if (! identifier) throw new TypeError('No identifer specified');
+      if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
 
+      Promise.resolve(fetch(identifier)).then(function(token) {
+        return token ? new Token(token) : null;
+      });
+    });
   };
 
   /* ======================================================================== *
    * Set/store a new token                                                    *
    * ======================================================================== */
   this.set = function(identifier, options) {
-    if (! identifier) throw new TypeError('No identifer specified');
-    if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
+    return new Promise(function(resolve, reject) {
 
-    if (! options) options = {}
-    if (! util.isObject(options)) throw new TypeError('Token options not an object');
-    if (! options.label) options.label = identifier;
+      if (! identifier) throw new TypeError('No identifer specified');
+      if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
 
+      if (! options) options = {}
+      if (! util.isObject(options)) throw new TypeError('Token options not an object');
+      if (! options.label) options.label = identifier;
 
+      var token = new Token(options);
+      Promise.resolve(store(identifier, token)).then(function(result) {
+        return (result || token);
+      });
+    });
   };
 
 };
