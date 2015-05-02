@@ -20,6 +20,8 @@ var totp = null;
 app.on('mount', function(parent) {
   if (! parent.locals.sessionManager) throw new Error('Application "sessionManager" not in locals');
   if (! parent.locals.credentials) throw new Error('Application "credentials" not in locals');
+  if (! parent.locals.totp) throw new Error('Application "totp" not in locals');
+
   sessionManager = parent.locals.sessionManager;
   credentials = parent.locals.credentials;
   totp = parent.locals.totp;
@@ -135,25 +137,35 @@ app.post('/:session', function(req, res, next) {
     throw e.BadRequest('Unable to parse "client_first"');
   }
 
-  // Get the credentials for the user
-  credentials.get(client_first.subject).then(function(cred) {
-    if (! cred) return next(e.Unauthorized());
+  // Get the credentials and token for the user
+  var cred = null;
 
-    /* ================================================================ *
-     * AuthMessage     := client-first-message-bare + "," +             *
-     *                    server-first-message + "," +                  *
-     *                    client-final-message-without-proof            *
-     *                                                                  *
-     * ServerSignature := HMAC(StoredKey, AuthMessage)                  *
-     * ClientKey       := ClientProof XOR ServerSignature               *
-     *                                                                  *
-     * DerivedKey      := HASH(ClientKey)                               *
-     * ServerProof     := HMAC(ServerKey, AuthMessage)                  *
-     * ================================================================ */
+  credentials.get(client_first.subject)
+    .then(function(c) {
+      if (! (cred = c)) throw e.Unauthorized();
+      return totp.get(client_first.subject)
+    })
 
-    try {
+    .then(function(token) {
+      if (! token) throw e.Unauthorized();
+      return token.many('2 min');
+    })
+
+    .then(function(secrets) {
+
+      /* ================================================================ *
+       * AuthMessage     := client-first-message-bare + "," +             *
+       *                    server-first-message + "," +                  *
+       *                    client-final-message-without-proof            *
+       *                                                                  *
+       * ServerSignature := HMAC(StoredKey, AuthMessage)                  *
+       * ClientKey       := ClientProof XOR ServerSignature               *
+       *                                                                  *
+       * DerivedKey      := HASH(ClientKey)                               *
+       * ServerProof     := HMAC(ServerKey, AuthMessage)                  *
+       * ================================================================ */
+
       var stored_key = base64.decode(cred.stored_key);
-      var secrets = totp.many('2 min');
       var invalidate = new Array();
 
       for (var i = 0; i < secrets.length; i ++) {
@@ -201,14 +213,12 @@ app.post('/:session', function(req, res, next) {
 
         return res.status(200).json(message).end();
       }
-    } catch (error) {
-      next(error);
-    }
 
-    // We finished our secrets...
-    next(e.Unauthorized());
+      // We finished our secrets...
+      throw new e.Unauthorized();
+    })
+    .catch(next);
 
-  });
 });
 
 
