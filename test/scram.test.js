@@ -9,8 +9,9 @@ var client = require('../src/client.js');
 /* Our "backend" for credentials */
 var credentials = (function() {
   var stored = {};
-  function fetch(subject) { return stored[subject] }
-  function store(subject, c) { stored[subject] = c }
+  // Fake promises...
+  function fetch(subject) { return Promise.resolve(stored[subject]) }
+  function store(subject, c) { return Promise.resolve(stored[subject] = c) }
   return require('../src/credentials')(fetch, store, { fake_salt: 'shut up!' });
 })();
 

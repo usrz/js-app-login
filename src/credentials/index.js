@@ -112,15 +112,14 @@ function Credentials(fetch, store, options) {
    * ======================================================================== */
 
   this.get = function(identifier) {
-    var self = this;
-    return Promise.resolve(fetch(identifier)).then(function(credentials) {
+    return new Promise(function(resolve, reject) {
 
       if (! identifier) throw new TypeError('No identifer specified');
       if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
 
-      // If we found some credentials, return them
-      return Promise.resolve(credentials);
+      resolve(fetch(identifier));
     });
+
   }
 
   /* ======================================================================== *
@@ -128,13 +127,13 @@ function Credentials(fetch, store, options) {
    * ======================================================================== */
 
   this.set = function(identifier, password) {
-
     return new Promise(function(resolve, reject) {
+
       if (! identifier) throw new TypeError('No identifer specified');
       if (! util.isString(identifier)) throw new TypeError('Identifier must be a string');
 
       if (util.isString(password)) password = new Buffer(password, 'utf8');
-      if (! util.isBuffer(password)) throw new TypeError('Password must be a buffer');
+      if (! util.isBuffer(password)) throw new TypeError('Password must be a string or buffer');
       if (password.length < 6) throw new TypeError('Corwardly refusing to save short password');
 
       var salt = crypto.randomBytes(salt_length);
