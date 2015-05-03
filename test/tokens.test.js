@@ -63,8 +63,8 @@ describe('Tokens', function() {
     var secret = new Buffer('This will expire in 300 millis', 'utf8');
 
     // Overflow timeout, so we are always sure it will work
-    var token1 = manager.create(300, secret);
-    var token2 = manager.create(300, secret);
+    var token1 = manager.create(Number.MAX_SAFE_INTEGER, secret);
+    var token2 = manager.create(Number.MAX_SAFE_INTEGER, secret);
 
     var components1 = token1.split('.');
     var components2 = token2.split('.');
