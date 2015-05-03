@@ -5,7 +5,7 @@ var crypto = require('crypto');
 
 var TokenManager = require('../src/tokens/index.js');
 
-describe.only('Tokens', function() {
+describe('Tokens', function() {
 
   var manager;
   before(function() {
