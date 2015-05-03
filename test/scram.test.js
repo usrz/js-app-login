@@ -15,15 +15,6 @@ var credentials = (function() {
   return require('../src/credentials')(fetch, store, { fake_salt: 'shut up!' });
 })();
 
-/* Our "backend" for credentials */
-var credentials = (function() {
-  var stored = {};
-  // Fake promises...
-  function fetch(subject) { return Promise.resolve(stored[subject]) }
-  function store(subject, c) { return Promise.resolve(stored[subject] = c) }
-  return require('../src/credentials')(fetch, store, { fake_salt: 'shut up!' });
-})();
-
 /* Our shared TOTP */
 var totp = (function() {
   var stored = {};
