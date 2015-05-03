@@ -13,6 +13,9 @@ const url = require('url');
 
 const CURVE = "P-521";
 
+const SERVER_KEY = new Buffer('Server Key', 'utf8');
+const CLIENT_KEY = new Buffer('Client Key', 'utf8');
+
 function Client(login_url, curve) {
   if (!(this instanceof Client)) return new Client(login_url, curve);
 
@@ -39,7 +42,9 @@ function Client(login_url, curve) {
   var requirements = null;
 
   var client_first = null;
+  var client_first_buffer = null;
   var server_first = null;
+  var server_first_buffer = null;
 
   /* ======================================================================== *
    * Client First                                                             *
@@ -57,7 +62,8 @@ function Client(login_url, curve) {
         subject: subject
       };
 
-      client_first = new Buffer(JSON.stringify(decoded), 'utf8').toString('base64');
+      client_first_buffer = new Buffer(JSON.stringify(decoded), 'utf8');
+      client_first = client_first_buffer.toString('base64');
 
       var message = {
         url: login_url,
@@ -86,7 +92,8 @@ function Client(login_url, curve) {
 
           // Decode server first
           server_first = body.server_first;
-          var decoded = JSON.parse(new Buffer(server_first, 'base64').toString('utf8'));
+          server_first_buffer = new Buffer(server_first, 'base64');
+          var decoded = JSON.parse(server_first_buffer.toString('utf8'));
 
           // Debugging data
           log.debug('<<< POST %s: %j', login_url, server_first, decoded);
@@ -140,9 +147,11 @@ function Client(login_url, curve) {
 
       if (! password) throw new TypeError('No password specified');
       if (! util.isString(password)) throw new TypeError('Password must be a string');
+      password = new Buffer(password, 'utf8');
 
       if (! secret) throw new TypeError('No secret specified');
-      if (! util.isString(secret)) throw new TypeError('Secret must be a string');
+      if (util.isString(secret)) secret = new Buffer(secret, 'utf8');
+      if (! util.isBuffer(secret)) throw new TypeError('Secret must be a utf 8 string or buffer');
 
       if (! util.isBuffer(salt)) throw new Error('Salt never decoded');
       if (!(salt.length >= hash_length)) throw new Error('Refusing to generate key with short (' + salt_length + ' bytes) salt');
@@ -150,9 +159,8 @@ function Client(login_url, curve) {
       if (!(iterations >= 10000)) throw new Error('Refusing to honor low (' + kdf_spec.iterations + ')  iterations');
 
       var hash = hashes.algorithm(pbkdf2_hash);
-      var buffer = new Buffer(password, 'utf8');
 
-      crypto.pbkdf2(buffer, salt, iterations, derived_key_length, hash, function(err, key) {
+      crypto.pbkdf2(password, salt, iterations, derived_key_length, hash, function(err, key) {
         if (err) return reject(err);
 
         try {
@@ -173,8 +181,13 @@ function Client(login_url, curve) {
            * ServerProof     := HMAC(ServerKey, AuthMessage)                  *
            * ================================================================ */
 
+          var auth_message = Buffer.concat([ nonce,
+                                             client_first_buffer,
+                                             server_first_buffer,
+                                             secret ]);
+
           var client_key = hashes.createHmac(scram_hash, key)
-                                 .update(new Buffer('Client Key', 'utf8'))
+                                 .update(CLIENT_KEY)
                                  .digest();
 
           var stored_key = hashes.createHash(scram_hash)
@@ -182,10 +195,7 @@ function Client(login_url, curve) {
                                  .digest();
 
           var client_signature = hashes.createHmac(scram_hash, stored_key)
-                                       .update(nonce)
-                                       .update(new Buffer(client_first, 'base64'))
-                                       .update(new Buffer(server_first, 'base64'))
-                                       .update(secret)
+                                       .update(auth_message)
                                        .digest();
 
           var client_proof = xor(client_key, client_signature).toString('base64');
@@ -219,14 +229,11 @@ function Client(login_url, curve) {
               log.debug('<<< POST %s: %s', session_url, server_proof);
 
               var server_key = hashes.createHmac(scram_hash, key)
-                                     .update(new Buffer('Server Key', 'utf8'))
+                                     .update(SERVER_KEY)
                                      .digest();
 
               var server_proof = hashes.createHmac(scram_hash, server_key)
-                                       .update(nonce)
-                                       .update(new Buffer(client_first, 'base64'))
-                                       .update(new Buffer(server_first, 'base64'))
-                                       .update(new Buffer(secret, 'utf8'))
+                                       .update(auth_message)
                                        .digest();
 
               if (Buffer.compare(server_proof, new Buffer(body.server_proof, 'base64')) != 0) {
@@ -236,7 +243,7 @@ function Client(login_url, curve) {
               var encryption_key = hashes.createHash(scram_hash)
                                          .update(nonce)
                                          .update(client_key)
-                                         .update(new Buffer(secret, 'utf8'))
+                                         .update(secret)
                                          .digest()
 
               // Return our encryption key (TODO: token)

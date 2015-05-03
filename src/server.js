@@ -190,11 +190,13 @@ app.post('/:session', function(req, res, next) {
         var secret = new Buffer(secrets[i], 'utf8');
         invalidate.push(secrets[i]);
 
+        var auth_message = Buffer.concat([ nonce,
+                                           client_first_buffer,
+                                           server_first_buffer,
+                                           secret ]);
+
         var server_signature = hashes.createHmac(cred.hash, cred.stored_key)
-                                     .update(nonce)
-                                     .update(client_first_buffer)
-                                     .update(server_first_buffer)
-                                     .update(secret)
+                                     .update(auth_message)
                                      .digest();
 
         var client_proof = new Buffer(body.client_proof, 'base64');
@@ -210,10 +212,7 @@ app.post('/:session', function(req, res, next) {
 
         // We're still here? Good, send out our proof!
         var server_proof = hashes.createHmac(cred.hash, cred.server_key)
-                                 .update(nonce)
-                                 .update(client_first_buffer)
-                                 .update(server_first_buffer)
-                                 .update(secret)
+                                 .update(auth_message)
                                  .digest();
 
         var encryption_key = hashes.createHash(cred.hash)
