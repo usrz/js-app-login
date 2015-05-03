@@ -30,7 +30,7 @@ describe('SCRAM Login', function() {
   var loginurl = null;
 
   before(function(done) {
-    express.locals.serverSessions = require('../src/tokens/ServerSessions')(new Buffer('foobarbaz'));
+    express.locals.serverSessions = require('../src/secrets/ServerSessions')(new Buffer('foobarbaz'));
     express.locals.credentials = credentials;
     express.locals.totp = totp;
 

@@ -3,13 +3,13 @@
 var expect = require('chai').expect;
 var crypto = require('crypto');
 
-var TokenManager = require('../src/tokens/TokenManager');
+var Secrets = require('../src/secrets/Secrets');
 
-describe('Tokens', function() {
+describe('Secrets', function() {
 
   var manager;
   before(function() {
-    manager = new TokenManager(new Buffer('hello, world!'));
+    manager = new Secrets(new Buffer('hello, world!'));
   });
 
   it('should encrypt and decrypt a secret', function() {

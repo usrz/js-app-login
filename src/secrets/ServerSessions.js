@@ -1,7 +1,7 @@
 'use strict';
 
-const TokenManager = require('./TokenManager');
 const e = require('../util/HttpError');
+const Secrets = require('./secrets');
 
 const util = require('util');
 const ms = require('ms');
@@ -13,7 +13,7 @@ const MINIMUM_TIMEOUT = ms('1 min');
 function ServerSessions(secret, timeout) {
   if (!(this instanceof ServerSessions)) return new ServerSessions(secret, timeout);
 
-  TokenManager.call(this, secret);
+  Secrets.call(this, secret);
 
   // Validate/normalize timeout
   if (! timeout) timeout = DEFAULT_TIMEOUT;
@@ -53,6 +53,6 @@ function ServerSessions(secret, timeout) {
   }
 }
 
-util.inherits(ServerSessions, TokenManager);
+util.inherits(ServerSessions, Secrets);
 
 exports = module.exports = ServerSessions;

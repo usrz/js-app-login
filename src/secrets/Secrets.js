@@ -28,8 +28,8 @@ function getAuthenticatedData(time_buffer, extra_auth_data) {
 
 }
 
-function TokenManager(key) {
-  if (!(this instanceof TokenManager)) throw new Error('Can not create a TokenManager');
+function Secrets(key) {
+  if (!(this instanceof Secrets)) throw new Error('Can not create a Secrets');
 
   // Validate key
   if (! util.isBuffer(key)) throw new TypeError('Encryption key must be buffer');
@@ -39,7 +39,7 @@ function TokenManager(key) {
   keys.set(this, crypto.createHash('sha256').update(key).digest());
 }
 
-TokenManager.prototype.create = function(timeout, secret, extra_auth_data) {
+Secrets.prototype.create = function(timeout, secret, extra_auth_data) {
 
   // Validate/normalize timeout
   if (! timeout) throw new TypeError('Missing timeout');
@@ -79,7 +79,7 @@ TokenManager.prototype.create = function(timeout, secret, extra_auth_data) {
           .replace(/=/g,   '');
 }
 
-TokenManager.prototype.validate = function(token, extra_auth_data) {
+Secrets.prototype.validate = function(token, extra_auth_data) {
 
   // Validate and split token in 4 parts
   if (! util.isString(token)) throw new Error('Token must be a string');
@@ -113,4 +113,4 @@ TokenManager.prototype.validate = function(token, extra_auth_data) {
   return decipher.read();
 }
 
-exports = module.exports = TokenManager;
+exports = module.exports = Secrets;
