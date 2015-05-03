@@ -1,5 +1,8 @@
 'use strict';
 
+const hashes = require('../util/hashes');
+const xor = require('../util/xor');
+
 const util = require('util');
 
 function Credential(cred) {
@@ -33,6 +36,41 @@ function Credential(cred) {
     salt:       { enumerable: true, configurable: false, value: salt       },
     hash:       { enumerable: true, configurable: false, value: hash       }
   });
+}
+
+Credential.prototype.verify = function verify(client_proof, auth_message) {
+  if (util.isString(client_proof)) client_proof = new Buffer(client_proof, 'base64');
+  if (! util.isBuffer(client_proof)) throw new TypeError('Client proof must be a buffer or base64 string');
+  if (! util.isBuffer(auth_message)) throw new TypeError('Auth message must be a buffer');
+
+  var server_signature = hashes.createHmac(this.hash, this.stored_key)
+                               .update(auth_message)
+                               .digest();
+
+  var client_key = xor(client_proof, server_signature);
+
+  var derived_key = hashes.createHash(this.hash)
+                          .update(client_key)
+                          .digest();
+
+  // Check that the stored key is the same as our derivate, if so we're good!
+  if (Buffer.compare(this.stored_key, derived_key) != 0) return;
+
+  // We're still here? Good, send out our proof!
+  var server_proof = hashes.createHmac(this.hash, this.server_key)
+                           .update(auth_message)
+                           .digest();
+
+  // Always use SHA256, as we encrypt in AES-256-GCM
+  var encryption_key = hashes.createHmac('sha256', client_key)
+                             .update(auth_message)
+                             .digest();
+
+  // Return server proof and encryption key
+  return {
+    encryption_key: encryption_key,
+    server_proof: server_proof
+  }
 }
 
 Credential.prototype.toString = function toString() {

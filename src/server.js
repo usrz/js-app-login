@@ -195,37 +195,17 @@ app.post('/:session', function(req, res, next) {
                                            server_first_buffer,
                                            secret ]);
 
-        var server_signature = hashes.createHmac(cred.hash, cred.stored_key)
-                                     .update(auth_message)
-                                     .digest();
+        var result = cred.verify(body.client_proof, auth_message);
+        if (! result) continue;
 
-        var client_proof = new Buffer(body.client_proof, 'base64');
-        var client_key = xor(client_proof, server_signature);
-
-        var derived_key = hashes.createHash(cred.hash)
-                                .update(client_key)
-                                .digest();
-
-        // Check that the stored key is the same as our derivate, if so we're good!
-        if (Buffer.compare(cred.stored_key, derived_key) != 0) continue;
-        // TODO console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
-
-        // We're still here? Good, send out our proof!
-        var server_proof = hashes.createHmac(cred.hash, cred.server_key)
-                                 .update(auth_message)
-                                 .digest();
-
-        var encryption_key = hashes.createHash(cred.hash)
-                                   .update(nonce)
-                                   .update(client_key)
-                                   .update(secret)
-                                   .digest()
+        // TODO console.log('SERVER SECRETS', secrets[i], 'INVALIDATE', invalidate);
+        // TODO console.log('ENCRYPTION KEY', result.encryption_key);
 
         // Send out our server final
         var message = {
           client_first: body.client_first,
           server_first: body.server_first,
-          server_proof: server_proof.toString('base64')
+          server_proof: result.server_proof.toString('base64')
         };
 
         return res.status(200).json(message).end();

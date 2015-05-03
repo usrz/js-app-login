@@ -240,10 +240,9 @@ function Client(login_url, curve) {
                 reject(new Error('Failed to validate server proof'));
               }
 
-              var encryption_key = hashes.createHash(scram_hash)
-                                         .update(nonce)
-                                         .update(client_key)
-                                         .update(secret)
+              // Always use SHA256, as we encrypt in AES-256-GCM
+              var encryption_key = hashes.createHmac('sha256', client_key)
+                                         .update(auth_message)
                                          .digest()
 
               // Return our encryption key (TODO: token)
