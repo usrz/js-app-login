@@ -166,7 +166,7 @@ HttpError.prototype.message = 'Internal Server Error';
 HttpError.prototype.status = 500;
 HttpError.prototype.name = 'HTTP 500';
 
-HttpError.prototype.toJSON = function() {
+HttpError.prototype.toJSON = function toJSON() {
   return {
     message: this.message,
     status: this.status
@@ -217,7 +217,7 @@ function makeHttpError(code, name, defaultMessage) {
   StatusError.prototype.status = parseInt(code);
   StatusError.prototype.name = 'HTTP ' + code;
 
-  StatusError.prototype.toJSON = function() {
+  StatusError.prototype.toJSON = function toJSON() {
     return {
       message: this.message,
       status: this.status

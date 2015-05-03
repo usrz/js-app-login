@@ -337,11 +337,11 @@ ECKey.createECKey = function(curve) {
  * ECDH/SIGNING/VALIDATION                                                    *
  * ========================================================================== */
 
-ECKey.prototype.computeSecret = function(key) {
+ECKey.prototype.computeSecret = function computeSecret(key) {
   return this.createECDH().computeSecret(key);
 }
 
-ECKey.prototype.createECDH = function() {
+ECKey.prototype.createECDH = function createECDH() {
   if (this.isPrivateECKey) {
     var ecdh = crypto.createECDH(this.curve);
     ecdh.setPublicKey(this.publicCodePoint);
@@ -361,7 +361,7 @@ ECKey.prototype.createECDH = function() {
   }
 }
 
-ECKey.prototype.createSign = function(hash) {
+ECKey.prototype.createSign = function createSign(hash) {
   if (! this.isPrivateECKey) throw new Error("EC Private Key needed to sign");
   var sign = crypto.createSign('RSA-' + hash); // RSA works with EC keys, too
   var signFunction = sign.sign;
@@ -372,7 +372,7 @@ ECKey.prototype.createSign = function(hash) {
   return sign;
 }
 
-ECKey.prototype.createVerify = function(hash) {
+ECKey.prototype.createVerify = function createVerify(hash) {
   var verify = crypto.createVerify('RSA-' + hash); // RSA works with EC keys, too
   var verifyFunction = verify.verify;
   var key = this.isPrivateECKey ? this.toPublicECKey() : this;
@@ -387,7 +387,7 @@ ECKey.prototype.createVerify = function(hash) {
  * CONVERSION                                                                 *
  * ========================================================================== */
 
-ECKey.prototype.toPublicECKey = function() {
+ECKey.prototype.toPublicECKey = function toPublicECKey() {
   if (! this.isPrivateECKey) return this;
   return new ECKey({
     curve: this.curve,
@@ -396,7 +396,7 @@ ECKey.prototype.toPublicECKey = function() {
   });
 }
 
-ECKey.prototype.toBuffer = function(format) {
+ECKey.prototype.toBuffer = function toBuffer(format) {
   if (this.isPrivateECKey) {
     // Strip leading zeroes from private key
     var d = this.d;
@@ -456,7 +456,7 @@ ECKey.prototype.toBuffer = function(format) {
   }
 }
 
-ECKey.prototype.toString = function(format) {
+ECKey.prototype.toString = function toString(format) {
   if (this.isPrivateECKey) {
     if (! format) format = "pem";
     if (format == "pem") { // pkcs8, wrapped
@@ -494,7 +494,7 @@ ECKey.prototype.toString = function(format) {
   }
 }
 
-ECKey.prototype.toJSON = function() {
+ECKey.prototype.toJSON = function toJSON() {
   function urlsafe(buffer) {
     return buffer.toString('base64')
                  .replace(/\+/g, '-')

@@ -39,7 +39,7 @@ function Secrets(key) {
   keys.set(this, crypto.createHash('sha256').update(key).digest());
 }
 
-Secrets.prototype.create = function(timeout, secret, extra_auth_data) {
+Secrets.prototype.create = function create(timeout, secret, extra_auth_data) {
 
   // Validate/normalize timeout
   if (! timeout) throw new TypeError('Missing timeout');
@@ -79,7 +79,7 @@ Secrets.prototype.create = function(timeout, secret, extra_auth_data) {
           .replace(/=/g,   '');
 }
 
-Secrets.prototype.validate = function(token, extra_auth_data) {
+Secrets.prototype.validate = function validate(token, extra_auth_data) {
 
   // Validate and split token in 4 parts
   if (! util.isString(token)) throw new Error('Token must be a string');
