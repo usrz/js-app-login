@@ -74,8 +74,8 @@ TokenManager.prototype.create = function(timeout, secret, extra_auth_data) {
          + init_vector.toString('base64') + '.'
          + encrypted_data.toString('base64') + '.'
          + auth_tag.toString('base64')
-         ).replace(/\+/g, '-')
-          .replace(/\//g, '_')
+         ).replace(/\+/g, '-') // URL-safe!!!
+          .replace(/\//g, '_') // decode will work...
           .replace(/=/g,   '');
 }
 
@@ -83,9 +83,7 @@ TokenManager.prototype.validate = function(token, extra_auth_data) {
 
   // Validate and split token in 4 parts
   if (! util.isString(token)) throw new Error('Token must be a string');
-  var components = token.replace(/\-/g, '+')
-                        .replace(/_/g,  '/')
-                        .split('.');
+  var components = token.split('.');
   if (components.length !== 4) throw new Error('Invalid token');
 
   // Parse out the buffers for decryption

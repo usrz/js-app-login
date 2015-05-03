@@ -2,8 +2,6 @@ var crypto = require('crypto');
 var asn = require('asn1.js');
 var util = require('util');
 
-var base64 = require('../util/base64');
-
 /* ========================================================================== *
  * From RFC-4492 (Appendix A) Equivalent Curves (Informative)                 *
  * ========================================================================== *
@@ -229,11 +227,11 @@ function ECKey(key, format) {
     if (util.isBuffer(key.privateKey)) {
       d = key.privateKey;
     } else if (util.isString(key.privateKey)) {
-      d = base64.decode(key.privateKey);
+      d = new Buffer(key.privateKey, 'base64');
     } else if (util.isBuffer(key.d)) {
       d = key.d;
     } else if (util.isString(key.d)) {
-      d = base64.decode(key.d);
+      d = new Buffer(key.d, 'base64');
     }
 
     // Public key, or x and y
@@ -243,7 +241,7 @@ function ECKey(key, format) {
       y = k.y;
 
     } else if (util.isString(key.publicKey)) {
-      var k = parsePublicKeyBuffer(curve, base64.decode(key.publicKey));
+      var k = parsePublicKeyBuffer(curve, new Buffer(key.publicKey, 'base64'));
       x = k.x;
       y = k.y;
 
@@ -252,13 +250,13 @@ function ECKey(key, format) {
       if (util.isBuffer(key.x)) {
         x = key.x;
       } else if (util.isString(key.x)) {
-        x = base64.decode(key.x);
+        x = new Buffer(key.x, 'base64');
       }
 
       if (util.isBuffer(key.y)) {
         y = key.y;
       } else if (util.isString(key.y)) {
-        y = base64.decode(key.y);
+        y = new Buffer(key.y, 'base64');
       }
     }
 
@@ -497,11 +495,18 @@ ECKey.prototype.toString = function(format) {
 }
 
 ECKey.prototype.toJSON = function() {
+  function urlsafe(buffer) {
+    return buffer.toString('base64')
+                 .replace(/\+/g, '-')
+                 .replace(/\//g, '_')
+                 .replace(/=/g,   '');
+  }
+
   var jwk = {
     kty: "EC",
     crv: jwkCurves[this.curve],
-    x: base64.encode(this.x),
-    y: base64.encode(this.y),
+    x: urlsafe(this.x),
+    y: urlsafe(this.y),
   };
 
   var d = this.d;
@@ -511,7 +516,7 @@ ECKey.prototype.toJSON = function() {
       var remaining = bytes - d.length;
       d = Buffer.concat([new Buffer(remaining).fill(0), d]);
     }
-    jwk.d = base64.encode(d);
+    jwk.d = urlsafe(d);
   }
 
   return jwk;
