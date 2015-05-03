@@ -39,7 +39,6 @@ describe('SCRAM Login', function() {
       if (error) done(error);
       var address = listener.address();
       loginurl = 'http://' + address.address + ':' + address.port + '/login';
-      console.log("DONE!");
       done();
     });
   });

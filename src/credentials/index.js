@@ -98,12 +98,12 @@ function Credentials(fetch, store, options) {
         hash: pbkdf2_hash,
         iterations: iterations,
         derived_key_length: key_length,
-        salt: base64.encode(salt)
       },
       fake: true,
       hash: scram_hash,
       server_key: '',
       stored_key: '',
+      salt: base64.encode(salt)
     };
   }
 
@@ -161,12 +161,12 @@ function Credentials(fetch, store, options) {
               algorithm: 'PBKDF2',
               hash: pbkdf2_hash,
               iterations: iterations,
-              derived_key_length: key_length,
-              salt: base64.encode(salt)
+              derived_key_length: key_length
             },
             hash: scram_hash,
             server_key: base64.encode(server_key),
             stored_key: base64.encode(stored_key),
+            salt: base64.encode(salt)
           }
 
           /* Save, then from this callback return resolve the returned promise */

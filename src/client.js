@@ -102,16 +102,18 @@ function Client(login_url, curve) {
           if (! hashes.validate(decoded.scram_hash)) throw new Error('Invalid scram hash ' + decoded.scram_hash);
           scram_hash = hashes.normalize(decoded.scram_hash);
 
+          // Validate salt
+          if (! util.isString(decoded.scram_salt)) throw new Error('Server did not issue a salt');
+          salt = base64.decode(decoded.scram_salt);
+
           // Get the server's specified "kdf spec"
           if (! decoded.kdf_spec) throw new Error('Server did not issue a KDF specification');
           var kdf_spec = decoded.kdf_spec;
 
           // Validate the KDF specification
           if (kdf_spec.algorithm != 'PBKDF2') throw new Error('KDF specification is not for PBKDF2');
-          if (! util.isString(kdf_spec.salt)) throw new Error('KDF specification missing/invalid salt');
 
           // Parameters for KDF2
-          salt = base64.decode(kdf_spec.salt);
           pbkdf2_hash = hashes.normalize(kdf_spec.hash);
           iterations = Number(kdf_spec.iterations);
           derived_key_length = Number(kdf_spec.derived_key_length);

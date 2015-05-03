@@ -70,8 +70,8 @@ describe('Credentials', function() {
         expect(result.kdf_spec.hash).to.equal('SHA-1');
         expect(result.kdf_spec.iterations).to.equal(100000);
         expect(result.kdf_spec.derived_key_length).to.equal(20);
-        expect(result.kdf_spec.salt).to.be.a('string');
-        expect(result.kdf_spec.salt.length).to.equal(27);
+        expect(result.salt).to.be.a('string');
+        expect(result.salt.length).to.equal(27);
         expect(result.hash).to.equal('SHA-256');
         expect(result.server_key).to.be.a('string');
         expect(result.stored_key).to.be.a('string');
@@ -106,8 +106,8 @@ describe('Credentials', function() {
         expect(result.kdf_spec.hash).to.equal('SHA-384');
         expect(result.kdf_spec.iterations).to.equal(12345);
         expect(result.kdf_spec.derived_key_length).to.equal(321);
-        expect(result.kdf_spec.salt).to.be.a('string');
-        expect(result.kdf_spec.salt.length).to.equal(164);
+        expect(result.salt).to.be.a('string');
+        expect(result.salt.length).to.equal(164);
         expect(result.hash).to.equal('SHA-512');
         expect(result.server_key).to.be.a('string');
         expect(result.stored_key).to.be.a('string');
@@ -161,7 +161,7 @@ describe('Credentials', function() {
     expect(result.kdf_spec.hash).to.equal('SHA-1');
     expect(result.kdf_spec.iterations).to.equal(100000);
     expect(result.kdf_spec.derived_key_length).to.equal(20);
-    expect(result.kdf_spec.salt).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg');
+    expect(result.salt).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg');
     expect(result.hash).to.equal('SHA-256');
     expect(result.server_key).to.equal('');
     expect(result.stored_key).to.equal('');

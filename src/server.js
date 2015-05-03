@@ -90,6 +90,7 @@ app.post('/', function(req, res, next) {
         public_key: private_key.toString('spki-urlsafe'),
         kdf_spec: cred.kdf_spec,
         scram_hash: cred.hash,
+        scram_salt: cred.salt,
         require: 'one-time-password'
       };
 
