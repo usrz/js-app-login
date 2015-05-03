@@ -30,6 +30,35 @@ var testVectorsTOTP = [
 
 describe('TOTP', function() {
 
+  describe('BASE32', function() {
+
+    var base32 = require('../src/totp/base32');
+
+    // Incredibly enough, "foobar" is in the RFC :-)
+    var testVectors = [
+      [ "f"      , "MY"         ],
+      [ "fo"     , "MZXQ"       ],
+      [ "foo"    , "MZXW6"      ],
+      [ "foob"   , "MZXW6YQ"    ],
+      [ "fooba"  , "MZXW6YTB"   ],
+      [ "foobar" , "MZXW6YTBOI" ],
+    ];
+
+    for (var i = 0; i < testVectors.length; i++) (function(i) {
+      var decoded = testVectors[i][0];
+      var encoded = testVectors[i][1];
+
+      it('should encode test vector ' + i, function() {
+        expect(base32.encode(decoded)).to.equal(encoded);
+      });
+
+      it('should decode test vector ' + i, function() {
+        expect(base32.decode(encoded).toString('utf8')).to.equal(decoded);
+      });
+
+    })(i);
+  });
+
   describe('Token storage', function() {
 
     var secrets = {}, totp;
