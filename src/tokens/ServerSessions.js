@@ -1,6 +1,6 @@
 'use strict';
 
-const TokenManager = require('../tokens');
+const TokenManager = require('./TokenManager');
 const base64 = require('../util/base64');
 const e = require('../util/HttpError');
 
@@ -11,8 +11,8 @@ const DEFAULT_TIMEOUT = ms('3 min');
 const MINIMUM_TIMEOUT = ms('1 min');
 
 
-function SessionManager(secret, timeout) {
-  if (!(this instanceof SessionManager)) return new SessionManager(secret, timeout);
+function ServerSessions(secret, timeout) {
+  if (!(this instanceof ServerSessions)) return new ServerSessions(secret, timeout);
 
   TokenManager.call(this, secret);
 
@@ -62,6 +62,6 @@ function SessionManager(secret, timeout) {
   }
 }
 
-util.inherits(SessionManager, TokenManager);
+util.inherits(ServerSessions, TokenManager);
 
-exports = module.exports = SessionManager;
+exports = module.exports = ServerSessions;

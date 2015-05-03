@@ -30,8 +30,7 @@ describe('SCRAM Login', function() {
   var loginurl = null;
 
   before(function(done) {
-    var sessionManager = require('../src/sessionManager')(new Buffer('foobarbaz'));
-    express.locals.sessionManager = sessionManager;
+    express.locals.serverSessions = require('../src/tokens/ServerSessions')(new Buffer('foobarbaz'));
     express.locals.credentials = credentials;
     express.locals.totp = totp;
 
@@ -40,6 +39,7 @@ describe('SCRAM Login', function() {
       if (error) done(error);
       var address = listener.address();
       loginurl = 'http://' + address.address + ':' + address.port + '/login';
+      console.log("DONE!");
       done();
     });
   });

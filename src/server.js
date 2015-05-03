@@ -15,16 +15,16 @@ const hashes = require('./util/hashes');
 const xor = require('./util/xor');
 const ECKey = require('./eckey');
 
-var sessionManager = null;
+var serverSessions = null;
 var credentials = null;
 var totp = null;
 
 app.on('mount', function(parent) {
-  if (! parent.locals.sessionManager) throw new Error('Application "sessionManager" not in locals');
+  if (! parent.locals.serverSessions) throw new Error('Application "serverSessions" not in locals');
   if (! parent.locals.credentials) throw new Error('Application "credentials" not in locals');
   if (! parent.locals.totp) throw new Error('Application "totp" not in locals');
 
-  sessionManager = parent.locals.sessionManager;
+  serverSessions = parent.locals.serverSessions;
   credentials = parent.locals.credentials;
   totp = parent.locals.totp;
 
@@ -101,7 +101,7 @@ app.post('/', function(req, res, next) {
 
       // Nonce, session and verification
       var nonce = private_key.computeSecret(public_key);
-      var session = sessionManager.create(nonce, message);
+      var session = serverSessions.create(nonce, message);
 
       // Created!
       res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
@@ -129,7 +129,7 @@ app.post('/:session', function(req, res, next) {
   if (! body.client_proof) throw e.BadRequest('Missing "client_proof"');
 
   // Validate session (will throw an error)
-  var nonce = sessionManager.validate(req.params.session, body);
+  var nonce = serverSessions.validate(req.params.session, body);
 
   // Parse client first
   var client_first = null;

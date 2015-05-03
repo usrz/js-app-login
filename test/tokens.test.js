@@ -3,7 +3,7 @@
 var expect = require('chai').expect;
 var crypto = require('crypto');
 
-var TokenManager = require('../src/tokens/index.js');
+var TokenManager = require('../src/tokens/TokenManager');
 
 describe('Tokens', function() {
 
