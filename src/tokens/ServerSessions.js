@@ -1,7 +1,6 @@
 'use strict';
 
 const TokenManager = require('./TokenManager');
-const base64 = require('../util/base64');
 const e = require('../util/HttpError');
 
 const util = require('util');
@@ -30,11 +29,7 @@ function ServerSessions(secret, timeout) {
   });
 
   var _create = this.create;
-  this.create = function(nonce, message) {
-
-    // Decode client and server first messages
-    var client_first = base64.decode(message.client_first);
-    var server_first = base64.decode(message.server_first);
+  this.create = function(nonce, client_first, server_first) {
 
     // Our authenticated data
     var extra_auth_data = Buffer.concat([client_first, server_first]);
@@ -43,11 +38,7 @@ function ServerSessions(secret, timeout) {
   }
 
   var _validate = this.validate;
-  this.validate = function(session, message) {
-
-    // Client first and server first
-    var client_first = base64.decode(message.client_first);
-    var server_first = base64.decode(message.server_first);
+  this.validate = function(session, client_first, server_first) {
 
     // Our authenticated data including time buffer!
     var extra_auth_data = Buffer.concat([client_first, server_first]);

@@ -1,6 +1,5 @@
 'use strict'
 
-const base64 = require('../util/base64');
 const crypto = require('crypto');
 const util = require('util');
 const ms = require('ms');

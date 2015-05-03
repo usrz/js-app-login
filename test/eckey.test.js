@@ -40,11 +40,6 @@ describe('EC Key', function() {
         // Strings: spki normal and url safe
         expect(key.toString('spki'))
           .to.equal(curve.pub.match(re)[1].replace(/[\s-]/g, ''));
-        expect(key.toString('spki-urlsafe'))
-          .to.equal(curve.pub.match(re)[1].replace(/[\s-]/g, '')
-                                          .replace(/\+/g, '-')
-                                          .replace(/\//g, '_')
-                                          .replace(/=+$/g, ''));
       }
 
       function testPrivateKey(curve, key, name) {
@@ -71,16 +66,6 @@ describe('EC Key', function() {
           .to.equal(curve.pkcs8.match(re)[1].replace(/[\s-]/g, ''));
         expect(key.toString('spki'))
           .to.equal(curve.pub.match(re)[1].replace(/[\s-]/g, ''));
-        expect(key.toString('pkcs8-urlsafe'))
-          .to.equal(curve.pkcs8.match(re)[1].replace(/[\s-]/g, '')
-                                            .replace(/\+/g, '-')
-                                            .replace(/\//g, '_')
-                                            .replace(/=+$/g, ''));
-        expect(key.toString('spki-urlsafe'))
-          .to.equal(curve.pub.match(re)[1].replace(/[\s-]/g, '')
-                                          .replace(/\+/g, '-')
-                                          .replace(/\//g, '_')
-                                          .replace(/=+$/g, ''));
 
         // Conversion to public key and test
         testPublicKey(curve, key.toPublicECKey(), name);

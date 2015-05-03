@@ -197,18 +197,16 @@ function ECKey(key, format) {
       y = k.y;
       d = k.d;
 
-    } else if ((format == "pkcs8")   || (format == "pkcs8-urlsafe")
-            || (format == "rfc5208") || (format == "rfc5208-urlsafe")) {
-      var k = parsePkcs8(base64.decode(key, 'base64'));
+    } else if ((format == "pkcs8") || (format == "rfc5208")) {
+      var k = parsePkcs8(new Buffer(key, 'base64'));
       curve = k.c;
       x = k.x;
       y = k.y;
       d = k.d;
 
 
-    } else if ((format == "spki")    || (format == "spki-urlsafe")
-            || (format == "rfc5280") || (format == "rfc5280-urlsafe")) {
-      var k = parseSpki(base64.decode(key, 'base64'));
+    } else if ((format == "spki") || (format == "rfc5280")) {
+      var k = parseSpki(new Buffer(key, 'base64'));
       curve = k.c;
       x = k.x;
       y = k.y;
@@ -476,14 +474,8 @@ ECKey.prototype.toString = function(format) {
     } else if ((format == "pkcs8") || (format == "rfc5208")) {
       return this.toBuffer('pkcs8').toString('base64');
 
-    } else if ((format == "pkcs8-urlsafe") || (format == "rfc5208-urlsafe")) {
-      return base64.encode(this.toBuffer('pkcs8'));
-
     } else if ((format == "spki") || (format == "rfc5280")) {
       return this.toBuffer('spki').toString('base64');
-
-    } else if ((format == "spki-urlsafe") || (format == "rfc5280-urlsafe")) {
-      return base64.encode(this.toBuffer('spki'));
 
     } else {
       throw new TypeError("Unknown format for private key \"" + format + "\"");
@@ -497,9 +489,6 @@ ECKey.prototype.toString = function(format) {
 
     } else if ((format == "spki") || (format == "rfc5280")) {
       return this.toBuffer('spki').toString('base64');
-
-    } else if ((format == "spki-urlsafe") || (format == "rfc5280-urlsafe")) {
-      return base64.encode(this.toBuffer('spki'));
 
     } else {
       throw new TypeError("Unknown format for public key \"" + format + "\"");

@@ -5,7 +5,6 @@ const request = require('request');
 const crypto = require('crypto');
 const log = require('errorlog')('login client');
 
-const base64 = require('./util/base64');
 const hashes = require('./util/hashes');
 const xor = require('./util/xor');
 const ECKey = require('./eckey');
@@ -54,11 +53,11 @@ function Client(login_url, curve) {
       if (! util.isString(subject)) throw new TypeError('Subject must be a string');
 
       var decoded = {
-        public_key: private_key.toString('spki-urlsafe'),
+        public_key: private_key.toString('spki'),
         subject: subject
       };
 
-      client_first = base64.encode_json(decoded);
+      client_first = new Buffer(JSON.stringify(decoded), 'utf8').toString('base64');
 
       var message = {
         url: login_url,
@@ -87,14 +86,14 @@ function Client(login_url, curve) {
 
           // Decode server first
           server_first = body.server_first;
-          var decoded = base64.decode_json(server_first);
+          var decoded = JSON.parse(new Buffer(server_first, 'base64').toString('utf8'));
 
           // Debugging data
           log.debug('<<< POST %s: %j', login_url, server_first, decoded);
 
           // Get the server's ECDHE key and calculate the nonce
           if (! decoded.public_key) throw new Error('Server did not issue a public key');
-          var public_key = new ECKey(decoded.public_key, 'spki-urlsafe');
+          var public_key = new ECKey(decoded.public_key, 'spki');
           nonce = private_key.computeSecret(public_key);
 
           // Get the server's SCRAM HASH
@@ -104,7 +103,7 @@ function Client(login_url, curve) {
 
           // Validate salt
           if (! util.isString(decoded.scram_salt)) throw new Error('Server did not issue a salt');
-          salt = base64.decode(decoded.scram_salt);
+          salt = new Buffer(decoded.scram_salt, 'base64');
 
           // Get the server's specified "kdf spec"
           if (! decoded.kdf_spec) throw new Error('Server did not issue a KDF specification');
@@ -184,12 +183,12 @@ function Client(login_url, curve) {
 
           var client_signature = hashes.createHmac(scram_hash, stored_key)
                                        .update(nonce)
-                                       .update(base64.decode(client_first))
-                                       .update(base64.decode(server_first))
+                                       .update(new Buffer(client_first, 'base64'))
+                                       .update(new Buffer(server_first, 'base64'))
                                        .update(secret)
                                        .digest();
 
-          var client_proof = base64.encode(xor(client_key, client_signature));
+          var client_proof = xor(client_key, client_signature).toString('base64');
 
           var message = {
             url: session_url,
@@ -225,12 +224,12 @@ function Client(login_url, curve) {
 
               var server_proof = hashes.createHmac(scram_hash, server_key)
                                        .update(nonce)
-                                       .update(base64.decode(client_first))
-                                       .update(base64.decode(server_first))
+                                       .update(new Buffer(client_first, 'base64'))
+                                       .update(new Buffer(server_first, 'base64'))
                                        .update(new Buffer(secret, 'utf8'))
                                        .digest();
 
-              if (Buffer.compare(server_proof, base64.decode(body.server_proof)) != 0) {
+              if (Buffer.compare(server_proof, new Buffer(body.server_proof, 'base64')) != 0) {
                 reject(new Error('Failed to validate server proof'));
               }
 

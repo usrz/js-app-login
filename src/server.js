@@ -1,6 +1,5 @@
 'use strict'
 
-
 const util = require('util');
 
 const log = require('errorlog')('login server');
@@ -10,7 +9,6 @@ const parser = require('body-parser');
 const typeis = require('type-is');
 
 const e = require('./util/HttpError');
-const base64 = require('./util/base64');
 const hashes = require('./util/hashes');
 const xor = require('./util/xor');
 const ECKey = require('./eckey');
@@ -44,7 +42,10 @@ app.use(function(req, res, next) {
 app.use(parser.urlencoded({extended: false}));
 app.use(parser.json());
 
-// Receive a client first
+/* ========================================================================== *
+ * INITIATE AUTHENTICATION SESSION                                            *
+ * ========================================================================== */
+
 app.post('/', function(req, res, next) {
 
   // Validate body
@@ -54,8 +55,10 @@ app.post('/', function(req, res, next) {
 
   // Parse client first
   var client_first = null;
+  var client_first_buffer = null;
   try {
-    client_first = base64.decode_json(body.client_first);
+    client_first_buffer = new Buffer(body.client_first, 'base64');
+    client_first = JSON.parse(client_first_buffer.toString('utf8'));
   } catch (error) {
     throw e.BadRequest('Unable to parse "client_first"');
   }
@@ -69,7 +72,7 @@ app.post('/', function(req, res, next) {
   // Parse the public key
   var public_key = null;
   try {
-    public_key = new ECKey(client_first.public_key, 'spki-urlsafe');
+    public_key = new ECKey(client_first.public_key, 'spki');
   } catch (error) {
     throw e.BadRequest('Unable to parse "client_first.public_key"');
   }
@@ -87,22 +90,25 @@ app.post('/', function(req, res, next) {
 
       // Prepare our server first message
       var server_first = {
-        public_key: private_key.toString('spki-urlsafe'),
+        public_key: private_key.toString('spki'),
         kdf_spec: cred.kdf_spec,
         scram_hash: cred.hash,
-        scram_salt: base64.encode(cred.salt),
+        scram_salt: cred.salt.toString('base64'),
         require: 'one-time-password'
       };
+
+      // As a buffer
+      var server_first_buffer = new Buffer(JSON.stringify(server_first), 'utf8');
 
       // Message ready for session
       var message = {
         client_first: body.client_first,
-        server_first: base64.encode(new Buffer(JSON.stringify(server_first), 'utf8'))
+        server_first: server_first_buffer.toString('base64')
       };
 
       // Nonce, session and verification
       var nonce = private_key.computeSecret(public_key);
-      var session = serverSessions.create(nonce, message);
+      var session = serverSessions.create(nonce, client_first_buffer, server_first_buffer);
 
       // Created!
       res.location(req.baseUrl.replace(/\/+$/, '') + '/' + session)
@@ -119,7 +125,10 @@ app.post('/', function(req, res, next) {
 
 });
 
-// Receive a client final
+/* ========================================================================== *
+ * VALIDATE AUTHENTICATION SESSION                                            *
+ * ========================================================================== */
+
 app.post('/:session', function(req, res, next) {
 
   // Validate body
@@ -129,13 +138,16 @@ app.post('/:session', function(req, res, next) {
   if (! body.server_first) throw e.BadRequest('Missing "server_first"');
   if (! body.client_proof) throw e.BadRequest('Missing "client_proof"');
 
+  var client_first_buffer = new Buffer(body.client_first, 'base64');
+  var server_first_buffer = new Buffer(body.server_first, 'base64');
+
   // Validate session (will throw an error)
-  var nonce = serverSessions.validate(req.params.session, body);
+  var nonce = serverSessions.validate(req.params.session, client_first_buffer, server_first_buffer);
 
   // Parse client first
   var client_first = null;
   try {
-    client_first = base64.decode_json(body.client_first);
+    client_first = JSON.parse(client_first_buffer.toString('utf8'));
   } catch (error) {
     throw e.BadRequest('Unable to parse "client_first"');
   }
@@ -174,15 +186,15 @@ app.post('/:session', function(req, res, next) {
         var secret = new Buffer(secrets[i], 'utf8');
         invalidate.push(secrets[i]);
 
-
         var server_signature = hashes.createHmac(cred.hash, cred.stored_key)
                                      .update(nonce)
-                                     .update(base64.decode(body.client_first))
-                                     .update(base64.decode(body.server_first))
+                                     .update(client_first_buffer)
+                                     .update(server_first_buffer)
                                      .update(secret)
                                      .digest();
 
-        var client_key = xor(base64.decode(body.client_proof), server_signature);
+        var client_proof = new Buffer(body.client_proof, 'base64');
+        var client_key = xor(client_proof, server_signature);
 
         var derived_key = hashes.createHash(cred.hash)
                                 .update(client_key)
@@ -195,8 +207,8 @@ app.post('/:session', function(req, res, next) {
         // We're still here? Good, send out our proof!
         var server_proof = hashes.createHmac(cred.hash, cred.server_key)
                                  .update(nonce)
-                                 .update(base64.decode(body.client_first))
-                                 .update(base64.decode(body.server_first))
+                                 .update(client_first_buffer)
+                                 .update(server_first_buffer)
                                  .update(secret)
                                  .digest();
 
@@ -210,7 +222,7 @@ app.post('/:session', function(req, res, next) {
         var message = {
           client_first: body.client_first,
           server_first: body.server_first,
-          server_proof: base64.encode(server_proof)
+          server_proof: server_proof.toString('base64')
         };
 
         return res.status(200).json(message).end();
