@@ -70,13 +70,13 @@ describe('Credentials', function() {
         expect(result.kdf_spec.hash).to.equal('SHA-1');
         expect(result.kdf_spec.iterations).to.equal(100000);
         expect(result.kdf_spec.derived_key_length).to.equal(20);
-        expect(result.salt).to.be.a('string');
-        expect(result.salt.length).to.equal(27);
+        expect(result.salt).to.be.instanceof(Buffer);
+        expect(result.salt.length).to.equal(20);
         expect(result.hash).to.equal('SHA-256');
-        expect(result.server_key).to.be.a('string');
-        expect(result.stored_key).to.be.a('string');
-        expect(result.server_key.length).to.equal(43);
-        expect(result.stored_key.length).to.equal(43);
+        expect(result.server_key).to.be.instanceof(Buffer);
+        expect(result.stored_key).to.be.instanceof(Buffer);
+        expect(result.server_key.length).to.equal(32);
+        expect(result.stored_key.length).to.equal(32);
         expect(result).to.eql(saved);
         done();
       })
@@ -106,13 +106,13 @@ describe('Credentials', function() {
         expect(result.kdf_spec.hash).to.equal('SHA-384');
         expect(result.kdf_spec.iterations).to.equal(12345);
         expect(result.kdf_spec.derived_key_length).to.equal(321);
-        expect(result.salt).to.be.a('string');
-        expect(result.salt.length).to.equal(164);
+        expect(result.salt).to.be.instanceof(Buffer);
+        expect(result.salt.length).to.equal(123);
         expect(result.hash).to.equal('SHA-512');
-        expect(result.server_key).to.be.a('string');
-        expect(result.stored_key).to.be.a('string');
-        expect(result.server_key.length).to.equal(86);
-        expect(result.stored_key.length).to.equal(86);
+        expect(result.server_key).to.be.instanceof(Buffer);
+        expect(result.stored_key).to.be.instanceof(Buffer);
+        expect(result.server_key.length).to.equal(64);
+        expect(result.stored_key.length).to.equal(64);
         expect(result).to.eql(saved);
         done();
       })
@@ -148,6 +148,31 @@ describe('Credentials', function() {
       .catch(done);
   });
 
+  it('should generate a serializable json object', function(done) {
+    var saved = {};
+    var store = new Credentials(function() {}, function() {}, { fake_salt: 'shut up!' });
+
+    store.set('test@example.org','password')
+      .then(function(result) {
+        var json = JSON.parse(JSON.stringify(result));
+        expect(json.kdf_spec).to.be.a('object');
+        expect(json.kdf_spec.algorithm).to.equal('PBKDF2');
+        expect(json.kdf_spec.hash).to.equal('SHA-1');
+        expect(json.kdf_spec.iterations).to.equal(100000);
+        expect(json.kdf_spec.derived_key_length).to.equal(20);
+        expect(json.salt).to.be.a('string');
+        expect(json.salt.length).to.equal(28);
+        expect(json.hash).to.equal('SHA-256');
+        expect(json.server_key).to.be.a('string');
+        expect(json.stored_key).to.be.a('string');
+        expect(json.server_key.length).to.equal(44);
+        expect(json.stored_key.length).to.equal(44);
+        done();
+      })
+
+      .catch(done);
+  });
+
   it('should generate some fake credentials', function() {
     var store = new Credentials(function() {}, function() {}, {
       fake_salt: '... a fake salt ...'
@@ -161,11 +186,10 @@ describe('Credentials', function() {
     expect(result.kdf_spec.hash).to.equal('SHA-1');
     expect(result.kdf_spec.iterations).to.equal(100000);
     expect(result.kdf_spec.derived_key_length).to.equal(20);
-    expect(result.salt).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg');
+    expect(result.salt.toString('base64')).to.equal('eYcff6TYCnrD0oRTKNSGTOMy8dg=');
     expect(result.hash).to.equal('SHA-256');
-    expect(result.server_key).to.equal('');
-    expect(result.stored_key).to.equal('');
-    expect(result.fake).to.equal(true);
+    expect(result.server_key).to.be.null;
+    expect(result.stored_key).to.be.null;
   });
 
   it('should should reject when fetch throws an error', function(done) {

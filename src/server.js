@@ -90,7 +90,7 @@ app.post('/', function(req, res, next) {
         public_key: private_key.toString('spki-urlsafe'),
         kdf_spec: cred.kdf_spec,
         scram_hash: cred.hash,
-        scram_salt: cred.salt,
+        scram_salt: base64.encode(cred.salt),
         require: 'one-time-password'
       };
 
@@ -168,7 +168,6 @@ app.post('/:session', function(req, res, next) {
        * ServerProof     := HMAC(ServerKey, AuthMessage)                  *
        * ================================================================ */
 
-      var stored_key = base64.decode(cred.stored_key);
       var invalidate = new Array();
 
       for (var i = 0; i < secrets.length; i ++) {
@@ -176,7 +175,7 @@ app.post('/:session', function(req, res, next) {
         invalidate.push(secrets[i]);
 
 
-        var server_signature = hashes.createHmac(cred.hash, stored_key)
+        var server_signature = hashes.createHmac(cred.hash, cred.stored_key)
                                      .update(nonce)
                                      .update(base64.decode(body.client_first))
                                      .update(base64.decode(body.server_first))
@@ -190,11 +189,11 @@ app.post('/:session', function(req, res, next) {
                                 .digest();
 
         // Check that the stored key is the same as our derivate, if so we're good!
-        if (Buffer.compare(stored_key, derived_key) != 0) continue;
+        if (Buffer.compare(cred.stored_key, derived_key) != 0) continue;
         // TODO console.log('SERVER SECRET', secrets[i], 'INVALIDATE', invalidate);
 
         // We're still here? Good, send out our proof!
-        var server_proof = hashes.createHmac(cred.hash, base64.decode(cred.server_key))
+        var server_proof = hashes.createHmac(cred.hash, cred.server_key)
                                  .update(nonce)
                                  .update(base64.decode(body.client_first))
                                  .update(base64.decode(body.server_first))

@@ -1,5 +1,6 @@
 'use strict';
 
+const Credential = require('./Credential');
 const base64 = require('../util/base64');
 const hashes = require('../util/hashes');
 
@@ -92,19 +93,16 @@ function Credentials(fetch, store, options) {
     // No credentials... Fake it, using PBKDF2 to generate a salt!
     var salt = crypto.pbkdf2Sync(identifier, fake_salt, 1, salt_length, "sha1");
 
-    return {
+    return new Credential({
       kdf_spec: {
         algorithm: 'PBKDF2',
         hash: pbkdf2_hash,
         iterations: iterations,
         derived_key_length: key_length,
       },
-      fake: true,
       hash: scram_hash,
-      server_key: '',
-      stored_key: '',
-      salt: base64.encode(salt)
-    };
+      salt: salt
+    });
   }
 
   /* ======================================================================== *
@@ -156,7 +154,7 @@ function Credentials(fetch, store, options) {
                                  .digest();
 
           /* Credentials */
-          var credentials = {
+          var credentials = new Credential({
             kdf_spec: {
               algorithm: 'PBKDF2',
               hash: pbkdf2_hash,
@@ -164,10 +162,10 @@ function Credentials(fetch, store, options) {
               derived_key_length: key_length
             },
             hash: scram_hash,
-            server_key: base64.encode(server_key),
-            stored_key: base64.encode(stored_key),
-            salt: base64.encode(salt)
-          }
+            server_key: server_key,
+            stored_key: stored_key,
+            salt: salt
+          });
 
           /* Save, then from this callback return resolve the returned promise */
           Promise.resolve(store(identifier, credentials))
