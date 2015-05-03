@@ -29,6 +29,10 @@ app.on('mount', function(parent) {
   log.info('Mounted under "' + app.mountpath + '"');
 });
 
+/* ========================================================================== *
+ * BASIC REQUEST CHECKS AND PARSING                                           *
+ * ========================================================================== */
+
 // Accept only POST, restrict content type to application/json
 // and application/x-www-form-urlencoded only.
 app.use(function(req, res, next) {
@@ -235,10 +239,10 @@ app.post('/:session', function(req, res, next) {
 
 });
 
+/* ========================================================================== *
+ * ERROR HANDLING                                                             *
+ * ========================================================================== */
 
-
-
-// Error handling
 app.use(function(error, req, res, next) {
   if (error instanceof e.HttpError) {
     if (error.status == 401) log.debug('Authentication failure', error);
