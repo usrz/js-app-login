@@ -14,22 +14,22 @@
   },
   "homepage": "https://github.com/usrz/js-api-login",
   "devDependencies": {
-    "chai": "^2.3.0",
-    "grunt": "^0.4.5",
-    "grunt-simple-mocha": "^0.4.0",
+    "chai": "^4.2.0",
+    "grunt": "^1.0.4",
+    "grunt-simple-mocha": "^0.4.1",
     "key-derivation": "^1.0.3",
-    "request": "^2.55.0"
+    "request": "^2.88.0"
   },
   "dependencies": {
-    "asn1.js": "^1.0.4",
-    "base64-url": "^1.2.1",
-    "body-parser": "^1.12.3",
-    "errorlog": "^1.2.0",
-    "express": "^4.12.3",
-    "express-statuses": "^1.0.3",
-    "ms": "^0.7.1",
-    "promise": "^7.0.1",
-    "type-is": "^1.6.1",
-    "ursa": "^0.8.4"
+    "asn1.js": "^5.2.0",
+    "base64-url": "^2.3.2",
+    "body-parser": "^1.19.0",
+    "errorlog": "^1.4.6",
+    "express": "^4.17.1",
+    "express-statuses": "^1.2.0",
+    "ms": "^2.1.2",
+    "promise": "^8.0.3",
+    "type-is": "^1.6.18",
+    "ursa": "^0.9.4"
   }
 }
